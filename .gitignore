@@ -1,0 +1,12 @@
+target/
+node_modules/
+dist/
+.idea/
+.vscode/
+*.iml
+*.log
+data/*.xlsx
+data/exported/
+backend/logs/
+backend/src/main/resources/application-local.yml
+frontend/.env.local

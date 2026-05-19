@@ -1,0 +1,66 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: mental-companion-assistant
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: ${MYSQL_URL:jdbc:mysql://127.0.0.1:3307/mental_companion?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true}
+    username: ${MYSQL_USERNAME:root}
+    password: ${MYSQL_PASSWORD:}
+  data:
+    redis:
+      host: ${REDIS_HOST:127.0.0.1}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      database: ${REDIS_DATABASE:0}
+      timeout: 3s
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 12MB
+  mail:
+    host: smtp.example.com
+    port: 587
+    username: change-me@example.com
+    password: change-me
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+  global-config:
+    db-config:
+      id-type: auto
+
+jwt:
+  secret: "mental-companion-assistant-demo-secret-please-change-2026"
+  expire-minutes: 720
+
+llm:
+  # 默认使用在线 OpenAI-compatible API。base-url 不要带 /v1。
+  # 例如阿里百炼兼容模式可填：https://dashscope.aliyuncs.com/compatible-mode
+  provider: openai
+  base-url: ${LLM_BASE_URL:https://dashscope.aliyuncs.com/compatible-mode}
+  api-key: ${LLM_API_KEY:}
+  model: ${LLM_MODEL:qwen-plus}
+  embedding-model: ${LLM_EMBEDDING_MODEL:text-embedding-v3}
+
+chroma:
+  base-url: ${CHROMA_BASE_URL:http://localhost:8000}
+  collection: ${CHROMA_COLLECTION:mental_companion_knowledge}
+  top-k: ${CHROMA_TOP_K:4}
+
+app:
+  excel:
+    workflow-path: ./data/workflow-records.xlsx
+    export-dir: ./data/exported
+  mail:
+    enabled: ${MAIL_ENABLED:false}
+    alert-receiver: ${MAIL_ALERT_RECEIVER:admin@example.com}
