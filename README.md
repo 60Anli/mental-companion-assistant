@@ -138,10 +138,11 @@ $env:LLM_API_KEY="你的在线模型 API Key"
 
 本地演示环境也可以使用 `backend/src/main/resources/application-local.yml`，该文件已加入 `.gitignore`，用于保存本机 MySQL、Redis 和模型 API Key，不会上传到 GitHub。
 
-3. 启动后端：
+3. 打包并启动后端。保持启动后端的 PowerShell 窗口打开：
 
 ```powershell
-C:\Users\83848\.m2\wrapper\dists\apache-maven-3.9.12-bin\5nmfsn99br87k5d4ajlekdq10k\apache-maven-3.9.12\bin\mvn.cmd -f backend\pom.xml spring-boot:run -Dspring-boot.run.profiles=local
+C:\Users\83848\.m2\wrapper\dists\apache-maven-3.9.12-bin\5nmfsn99br87k5d4ajlekdq10k\apache-maven-3.9.12\bin\mvn.cmd -f backend\pom.xml -DskipTests package
+D:\JAVA\jdk21\bin\java.exe -jar backend\target\mental-companion-assistant-0.0.1-SNAPSHOT.jar --spring.profiles.active=local
 ```
 
 4. 启动前端：
