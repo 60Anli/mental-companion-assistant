@@ -114,9 +114,17 @@ llm:
 
 ## 启动步骤
 
-1. 启动 Docker MySQL 和 Chroma：
+1. 启动 Docker MySQL 和 Chroma。首次启动会拉取 `mysql:8.0` 和 `chromadb/chroma:0.5.23`，如果出现 `context deadline exceeded`，通常是 Docker Hub 网络超时，重跑同一条命令即可复用已下载的镜像层：
 
-```bash
+```powershell
+docker compose up -d mysql chroma
+```
+
+如果多次超时，可以先分开拉取镜像，再启动服务：
+
+```powershell
+docker pull mysql:8.0
+docker pull chromadb/chroma:0.5.23
 docker compose up -d mysql chroma
 ```
 
