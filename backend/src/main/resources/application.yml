@@ -52,6 +52,14 @@ llm:
   model: ${LLM_MODEL:qwen-plus}
   embedding-model: ${LLM_EMBEDDING_MODEL:text-embedding-v3}
 
+fine-tune:
+  enabled: ${FINE_TUNE_ENABLED:false}
+  base-model: ${FINE_TUNE_BASE_MODEL:Qwen2.5}
+  adapter-type: ${FINE_TUNE_ADAPTER_TYPE:QLoRA}
+  adapter-path: ${FINE_TUNE_ADAPTER_PATH:./models/adapters/qwen2.5-mental}
+  ollama-model: ${FINE_TUNE_OLLAMA_MODEL:qwen2.5-mental:latest}
+  training-profile: ${FINE_TUNE_TRAINING_PROFILE:emotion-dialog-sft}
+
 chroma:
   base-url: ${CHROMA_BASE_URL:http://localhost:8000}
   collection: ${CHROMA_COLLECTION:mental_companion_knowledge}

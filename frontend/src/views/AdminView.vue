@@ -14,6 +14,22 @@
     <main class="admin-main">
       <section class="admin-section">
         <div class="section-head">
+          <h1>模型运行状态</h1>
+        </div>
+        <div class="model-grid">
+          <span>模型提供方</span><strong>{{ modelRuntime.provider || '-' }}</strong>
+          <span>聊天模型</span><strong>{{ modelRuntime.chatModel || '-' }}</strong>
+          <span>嵌入模型</span><strong>{{ modelRuntime.embeddingModel || '-' }}</strong>
+          <span>微调接入</span><strong>{{ modelRuntime.fineTuneEnabled ? '已启用' : '未启用' }}</strong>
+          <span>基础模型</span><strong>{{ modelRuntime.fineTuneBaseModel || '-' }}</strong>
+          <span>适配器类型</span><strong>{{ modelRuntime.adapterType || '-' }}</strong>
+          <span>Ollama 微调模型名</span><strong>{{ modelRuntime.ollamaModel || '-' }}</strong>
+          <span>训练配置</span><strong>{{ modelRuntime.trainingProfile || '-' }}</strong>
+        </div>
+      </section>
+
+      <section class="admin-section">
+        <div class="section-head">
           <h1>知识库</h1>
           <el-upload :show-file-list="false" :before-upload="handleUpload" accept=".txt,.md">
             <el-button type="primary" :icon="Upload">上传</el-button>
@@ -97,6 +113,7 @@ import {
   fetchEmailLogs,
   fetchKnowledgeList,
   fetchMemories,
+  fetchModelRuntime,
   fetchRiskRecords,
   fetchWorkflowRecords,
   exportWorkflowExcel,
@@ -110,20 +127,23 @@ const workflowRecords = ref([])
 const riskRecords = ref([])
 const emailLogs = ref([])
 const memories = ref([])
+const modelRuntime = ref({})
 
 async function loadAll() {
-  const [knowledgeRes, workflowRes, riskRes, emailRes, memoryRes] = await Promise.all([
+  const [knowledgeRes, workflowRes, riskRes, emailRes, memoryRes, modelRes] = await Promise.all([
     fetchKnowledgeList(),
     fetchWorkflowRecords(),
     fetchRiskRecords(),
     fetchEmailLogs(),
-    fetchMemories()
+    fetchMemories(),
+    fetchModelRuntime()
   ])
   knowledge.value = knowledgeRes.data
   workflowRecords.value = workflowRes.data
   riskRecords.value = riskRes.data
   emailLogs.value = emailRes.data
   memories.value = memoryRes.data
+  modelRuntime.value = modelRes.data
 }
 
 async function handleUpload(file) {

@@ -26,6 +26,10 @@ export function fetchMemories() {
   return http.get('/admin/memories')
 }
 
+export function fetchModelRuntime() {
+  return http.get('/admin/model/runtime')
+}
+
 export function sendTestEmail(receiver) {
   return http.post('/admin/email/test', { receiver })
 }

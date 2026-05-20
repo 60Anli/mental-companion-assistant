@@ -200,8 +200,24 @@ textarea {
   font-size: 14px;
 }
 
+.model-grid {
+  display: grid;
+  grid-template-columns: 160px minmax(0, 1fr);
+  gap: 12px;
+  font-size: 14px;
+}
+
 .status-grid span {
   color: #607269;
+}
+
+.model-grid span {
+  color: #607269;
+}
+
+.model-grid strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .status-grid strong.low {
@@ -306,4 +322,3 @@ textarea {
     max-width: 92%;
   }
 }
-
