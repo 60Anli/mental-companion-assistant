@@ -4,6 +4,7 @@ import com.example.mentalcompanion.config.AppProperties;
 import com.example.mentalcompanion.domain.entity.EmailAlertLog;
 import com.example.mentalcompanion.domain.entity.RiskRecord;
 import com.example.mentalcompanion.mapper.EmailAlertLogMapper;
+import org.springframework.mail.MailException;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
@@ -55,18 +56,34 @@ public class EmailAlertService {
             saveLog(riskRecordId, receiver, subject, content, "SKIPPED", "app.mail.enabled=false");
             return false;
         }
+        String validationError = validateMailConfig(receiver);
+        if (validationError != null) {
+            saveLog(riskRecordId, receiver, subject, content, "FAILED", validationError);
+            return false;
+        }
         try {
             SimpleMailMessage message = new SimpleMailMessage();
+            message.setFrom(appProperties.mail().from());
             message.setTo(receiver);
             message.setSubject(subject);
             message.setText(content);
             mailSender.send(message);
             saveLog(riskRecordId, receiver, subject, content, "SUCCESS", null);
             return true;
-        } catch (RuntimeException ex) {
+        } catch (MailException ex) {
             saveLog(riskRecordId, receiver, subject, content, "FAILED", ex.getMessage());
             return false;
         }
+    }
+
+    private String validateMailConfig(String receiver) {
+        if (receiver == null || receiver.isBlank()) {
+            return "Missing mail receiver";
+        }
+        if (appProperties.mail().from() == null || appProperties.mail().from().isBlank()) {
+            return "Missing app.mail.from";
+        }
+        return null;
     }
 
     private void saveLog(Long riskRecordId, String receiver, String subject, String content, String status, String error) {
@@ -81,4 +98,3 @@ public class EmailAlertService {
         emailAlertLogMapper.insert(log);
     }
 }
-
