@@ -1,78 +1,133 @@
+# Public default configuration. Secrets should be provided by environment
+# variables or by application-local.yml, which is ignored by Git.
+
 server:
+  # Backend HTTP port. Frontend Vite proxy forwards /api requests here.
   port: 8080
 
 spring:
   application:
+    # Application name shown in logs.
     name: mental-companion-assistant
+
   datasource:
+    # MySQL Connector/J driver for Spring Boot 3.
     driver-class-name: com.mysql.cj.jdbc.Driver
+    # MySQL JDBC URL.
+    # Default points to Docker MySQL: host 127.0.0.1, host port 3307,
+    # container port 3306, database mental_companion.
     url: ${MYSQL_URL:jdbc:mysql://127.0.0.1:3307/mental_companion?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true}
+    # MySQL username.
     username: ${MYSQL_USERNAME:root}
+    # MySQL password. Leave empty in public config; set MYSQL_PASSWORD or application-local.yml.
     password: ${MYSQL_PASSWORD:}
+
   data:
     redis:
+      # Redis host for short-term memory.
       host: ${REDIS_HOST:127.0.0.1}
+      # Redis port.
       port: ${REDIS_PORT:6379}
+      # Redis password. Leave empty if Redis has no password.
       password: ${REDIS_PASSWORD:}
+      # Redis logical database index.
       database: ${REDIS_DATABASE:0}
+      # Redis connection timeout.
       timeout: 3s
+
   servlet:
     multipart:
+      # Max size of one uploaded knowledge file.
       max-file-size: 10MB
+      # Max size of one multipart request.
       max-request-size: 12MB
+
   mail:
+    # SMTP server host, for example smtp.qq.com, smtp.163.com, smtp.gmail.com.
     host: ${MAIL_HOST:smtp.example.com}
+    # SMTP port. Common values: 465 for SSL, 587 for STARTTLS.
     port: ${MAIL_PORT:587}
+    # SMTP login account, usually the sender email address.
     username: ${MAIL_USERNAME:}
+    # SMTP password or authorization code, not usually the webmail login password.
     password: ${MAIL_PASSWORD:}
+    # Encoding for email subject and body.
     default-encoding: UTF-8
     properties:
       mail:
         smtp:
+          # Whether SMTP login authentication is required.
           auth: ${MAIL_SMTP_AUTH:true}
           starttls:
+            # Enable STARTTLS. Usually true for port 587, false for port 465.
             enable: ${MAIL_SMTP_STARTTLS_ENABLE:true}
           ssl:
+            # Enable SSL. Usually true for port 465, false for port 587.
             enable: ${MAIL_SMTP_SSL_ENABLE:false}
 
 mybatis-plus:
   configuration:
+    # Map snake_case database columns to camelCase Java fields.
     map-underscore-to-camel-case: true
   global-config:
     db-config:
+      # Use auto-increment primary keys.
       id-type: auto
 
 jwt:
+  # JWT signing secret. Replace in production.
   secret: "mental-companion-assistant-demo-secret-please-change-2026"
+  # JWT validity duration in minutes.
   expire-minutes: 720
 
 llm:
-  # 默认使用在线 OpenAI-compatible API。base-url 不要带 /v1。
-  # 例如阿里百炼兼容模式可填：https://dashscope.aliyuncs.com/compatible-mode
+  # Model provider. Supported values:
+  # - openai: OpenAI-compatible API, requests /v1/chat/completions and /v1/embeddings.
+  # - ollama: local Ollama API, requests /api/chat and /api/embeddings.
   provider: openai
+  # Base URL without /v1 for OpenAI-compatible providers.
+  # Example for DashScope compatible mode: https://dashscope.aliyuncs.com/compatible-mode
   base-url: ${LLM_BASE_URL:https://dashscope.aliyuncs.com/compatible-mode}
+  # API key for online model providers. Keep empty in public config.
   api-key: ${LLM_API_KEY:}
+  # Chat model for intent recognition, risk classification, memory extraction and reply generation.
   model: ${LLM_MODEL:qwen-plus}
+  # Embedding model for document chunks and user queries in RAG.
   embedding-model: ${LLM_EMBEDDING_MODEL:text-embedding-v3}
 
 fine-tune:
+  # Whether the deployment is using a local fine-tuned model.
   enabled: ${FINE_TUNE_ENABLED:false}
+  # Base model name used before LoRA/QLoRA adaptation.
   base-model: ${FINE_TUNE_BASE_MODEL:Qwen2.5}
+  # Adapter type, for example LoRA or QLoRA.
   adapter-type: ${FINE_TUNE_ADAPTER_TYPE:QLoRA}
+  # Local path where adapter artifacts are stored. Artifacts are not included in Git.
   adapter-path: ${FINE_TUNE_ADAPTER_PATH:./models/adapters/qwen2.5-mental}
+  # Ollama model name after adapter merge/export.
   ollama-model: ${FINE_TUNE_OLLAMA_MODEL:qwen2.5-mental:latest}
+  # Training profile label shown on the admin runtime page.
   training-profile: ${FINE_TUNE_TRAINING_PROFILE:emotion-dialog-sft}
 
 chroma:
+  # Chroma server URL. Docker Compose exposes Chroma on localhost:8000.
   base-url: ${CHROMA_BASE_URL:http://localhost:8000}
+  # Chroma collection name used for psychological knowledge chunks.
   collection: ${CHROMA_COLLECTION:mental_companion_knowledge}
+  # Number of chunks retrieved for each user query.
   top-k: ${CHROMA_TOP_K:4}
 
 app:
   excel:
+    # Incremental Excel file for every non-chat workflow record.
     workflow-path: ./data/workflow-records.xlsx
+    # Directory for admin full exports.
     export-dir: ./data/exported
   mail:
+    # Real sending switch. false = skip sending and write SKIPPED log.
     enabled: ${MAIL_ENABLED:false}
+    # From address in outgoing emails. Usually same as spring.mail.username.
     from: ${MAIL_FROM:}
+    # Receiver for high-risk email alerts.
     alert-receiver: ${MAIL_ALERT_RECEIVER:admin@example.com}
+
