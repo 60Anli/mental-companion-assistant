@@ -1,133 +1,133 @@
-# Public default configuration. Secrets should be provided by environment
-# variables or by application-local.yml, which is ignored by Git.
+# 公共默认配置文件。
+# 注意：不要在这个文件里写真实密码、API Key、邮箱授权码。
+# 私密配置请写到 application-local.yml，或通过环境变量传入。
 
 server:
-  # Backend HTTP port. Frontend Vite proxy forwards /api requests here.
+  # 后端 HTTP 端口。前端 Vite 会把 /api 请求代理到这里。
   port: 8080
 
 spring:
   application:
-    # Application name shown in logs.
+    # 应用名称，会显示在日志中。
     name: mental-companion-assistant
 
   datasource:
-    # MySQL Connector/J driver for Spring Boot 3.
+    # MySQL Connector/J 驱动，Spring Boot 3 推荐使用 com.mysql.cj.jdbc.Driver。
     driver-class-name: com.mysql.cj.jdbc.Driver
-    # MySQL JDBC URL.
-    # Default points to Docker MySQL: host 127.0.0.1, host port 3307,
-    # container port 3306, database mental_companion.
+    # MySQL 连接地址。
+    # 默认连接 Docker MySQL：宿主机 127.0.0.1:3307 -> 容器内 3306，数据库 mental_companion。
     url: ${MYSQL_URL:jdbc:mysql://127.0.0.1:3307/mental_companion?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true}
-    # MySQL username.
+    # MySQL 用户名。
     username: ${MYSQL_USERNAME:root}
-    # MySQL password. Leave empty in public config; set MYSQL_PASSWORD or application-local.yml.
+    # MySQL 密码。公共配置保持为空，本地在 application-local.yml 或 MYSQL_PASSWORD 中填写。
     password: ${MYSQL_PASSWORD:}
 
   data:
     redis:
-      # Redis host for short-term memory.
+      # Redis 地址，用于保存最近 10 轮短期记忆。
       host: ${REDIS_HOST:127.0.0.1}
-      # Redis port.
+      # Redis 端口。
       port: ${REDIS_PORT:6379}
-      # Redis password. Leave empty if Redis has no password.
+      # Redis 密码。如果 Redis 没有密码，可以留空。
       password: ${REDIS_PASSWORD:}
-      # Redis logical database index.
+      # Redis 逻辑库编号。
       database: ${REDIS_DATABASE:0}
-      # Redis connection timeout.
+      # Redis 连接超时时间。
       timeout: 3s
 
   servlet:
     multipart:
-      # Max size of one uploaded knowledge file.
+      # 单个知识库上传文件最大大小。
       max-file-size: 10MB
-      # Max size of one multipart request.
+      # 单次 multipart 请求最大大小。
       max-request-size: 12MB
 
   mail:
-    # SMTP server host, for example smtp.qq.com, smtp.163.com, smtp.gmail.com.
+    # SMTP 服务器地址，例如 smtp.qq.com、smtp.163.com、smtp.gmail.com。
     host: ${MAIL_HOST:smtp.example.com}
-    # SMTP port. Common values: 465 for SSL, 587 for STARTTLS.
+    # SMTP 端口：465 通常配 SSL，587 通常配 STARTTLS。
     port: ${MAIL_PORT:587}
-    # SMTP login account, usually the sender email address.
+    # SMTP 登录账号，通常就是发件邮箱地址。
     username: ${MAIL_USERNAME:}
-    # SMTP password or authorization code, not usually the webmail login password.
+    # SMTP 密码或授权码，通常不是网页登录密码。
     password: ${MAIL_PASSWORD:}
-    # Encoding for email subject and body.
+    # 邮件标题和正文编码。
     default-encoding: UTF-8
     properties:
       mail:
         smtp:
-          # Whether SMTP login authentication is required.
+          # 是否启用 SMTP 登录认证。
           auth: ${MAIL_SMTP_AUTH:true}
           starttls:
-            # Enable STARTTLS. Usually true for port 587, false for port 465.
+            # 是否启用 STARTTLS。587 端口通常为 true，465 端口通常为 false。
             enable: ${MAIL_SMTP_STARTTLS_ENABLE:true}
           ssl:
-            # Enable SSL. Usually true for port 465, false for port 587.
+            # 是否启用 SSL。465 端口通常为 true，587 端口通常为 false。
             enable: ${MAIL_SMTP_SSL_ENABLE:false}
 
 mybatis-plus:
   configuration:
-    # Map snake_case database columns to camelCase Java fields.
+    # 数据库下划线字段自动映射为 Java 驼峰字段。
     map-underscore-to-camel-case: true
   global-config:
     db-config:
-      # Use auto-increment primary keys.
+      # 主键使用数据库自增。
       id-type: auto
 
 jwt:
-  # JWT signing secret. Replace in production.
+  # JWT 签名密钥。生产环境应替换为更安全的随机字符串。
   secret: "mental-companion-assistant-demo-secret-please-change-2026"
-  # JWT validity duration in minutes.
+  # JWT 有效期，单位：分钟。
   expire-minutes: 720
 
 llm:
-  # Model provider. Supported values:
-  # - openai: OpenAI-compatible API, requests /v1/chat/completions and /v1/embeddings.
-  # - ollama: local Ollama API, requests /api/chat and /api/embeddings.
+  # 大模型提供方：
+  # openai = OpenAI-compatible API，请求 /v1/chat/completions 和 /v1/embeddings。
+  # ollama = 本地 Ollama API，请求 /api/chat 和 /api/embeddings。
   provider: openai
-  # Base URL without /v1 for OpenAI-compatible providers.
-  # Example for DashScope compatible mode: https://dashscope.aliyuncs.com/compatible-mode
+  # 大模型服务基础地址。OpenAI-compatible 服务这里不要带 /v1。
+  # 阿里百炼兼容模式示例：https://dashscope.aliyuncs.com/compatible-mode
   base-url: ${LLM_BASE_URL:https://dashscope.aliyuncs.com/compatible-mode}
-  # API key for online model providers. Keep empty in public config.
+  # 在线模型 API Key。公共配置保持为空，本地在 application-local.yml 或 LLM_API_KEY 中填写。
   api-key: ${LLM_API_KEY:}
-  # Chat model for intent recognition, risk classification, memory extraction and reply generation.
+  # 聊天模型，用于意图识别、风险分类、长期记忆抽取和回复生成。
   model: ${LLM_MODEL:qwen-plus}
-  # Embedding model for document chunks and user queries in RAG.
+  # 嵌入模型，用于知识库切片和用户问题向量化，是 RAG 检索必须的。
   embedding-model: ${LLM_EMBEDDING_MODEL:text-embedding-v3}
 
 fine-tune:
-  # Whether the deployment is using a local fine-tuned model.
+  # 是否启用本地微调模型接入标识。该配置用于运行状态展示和部署切换。
   enabled: ${FINE_TUNE_ENABLED:false}
-  # Base model name used before LoRA/QLoRA adaptation.
+  # 微调前的基础模型名称。
   base-model: ${FINE_TUNE_BASE_MODEL:Qwen2.5}
-  # Adapter type, for example LoRA or QLoRA.
+  # 适配器类型，例如 LoRA 或 QLoRA。
   adapter-type: ${FINE_TUNE_ADAPTER_TYPE:QLoRA}
-  # Local path where adapter artifacts are stored. Artifacts are not included in Git.
+  # 本地适配器文件目录。训练产物不进入 Git 仓库。
   adapter-path: ${FINE_TUNE_ADAPTER_PATH:./models/adapters/qwen2.5-mental}
-  # Ollama model name after adapter merge/export.
+  # 合并或封装到 Ollama 后的本地模型名。
   ollama-model: ${FINE_TUNE_OLLAMA_MODEL:qwen2.5-mental:latest}
-  # Training profile label shown on the admin runtime page.
+  # 训练配置名称，用于管理员页面展示。
   training-profile: ${FINE_TUNE_TRAINING_PROFILE:emotion-dialog-sft}
 
 chroma:
-  # Chroma server URL. Docker Compose exposes Chroma on localhost:8000.
+  # Chroma 向量数据库地址。docker-compose 默认暴露在 localhost:8000。
   base-url: ${CHROMA_BASE_URL:http://localhost:8000}
-  # Chroma collection name used for psychological knowledge chunks.
+  # Chroma collection 名称，用于保存心理知识库切片。
   collection: ${CHROMA_COLLECTION:mental_companion_knowledge}
-  # Number of chunks retrieved for each user query.
+  # 每次用户提问检索的知识片段数量。
   top-k: ${CHROMA_TOP_K:4}
 
 app:
   excel:
-    # Incremental Excel file for every non-chat workflow record.
+    # 非闲聊 workflow_record 每次追加写入的 Excel 文件。
     workflow-path: ./data/workflow-records.xlsx
-    # Directory for admin full exports.
+    # 管理端导出全部 workflow_record 时的文件目录。
     export-dir: ./data/exported
   mail:
-    # Real sending switch. false = skip sending and write SKIPPED log.
+    # 是否真实发送邮件。false 表示不发邮件，只写 SKIPPED 日志；true 表示调用 SMTP 真发。
     enabled: ${MAIL_ENABLED:false}
-    # From address in outgoing emails. Usually same as spring.mail.username.
+    # 邮件发件人地址，通常和 spring.mail.username 一样。
     from: ${MAIL_FROM:}
-    # Receiver for high-risk email alerts.
+    # 高风险预警收件邮箱。
     alert-receiver: ${MAIL_ALERT_RECEIVER:admin@example.com}
 
