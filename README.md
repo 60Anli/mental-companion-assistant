@@ -31,6 +31,11 @@ mental-companion-assistant
 │  │  └─ domain
 │  └─ src/main/resources/application.yml
 ├─ frontend
+├─ pretrain
+│  ├─ configs
+│  ├─ scripts
+│  ├─ data
+│  └─ ollama
 ├─ docker/mysql/init.sql
 ├─ docker-compose.yml
 └─ data/sample-knowledge.md
@@ -69,6 +74,8 @@ flowchart TD
 ## 本地微调模型接入
 
 项目提供本地微调模型接入配置和管理端运行状态接口。微调权重、训练数据和模型产物不随仓库分发；部署时可将 LoRA / QLoRA 适配器合并或封装为 Ollama 模型，再通过配置切换到本地模型。
+
+`pretrain/` 目录提供 Qwen2.5-7B 心理场景 QLoRA 微调工程脚手架，包括数据清洗、训练配置、训练脚本、评估脚本、LoRA 合并脚本和 Ollama Modelfile 模板。默认参数包含 rank=8、alpha=16、学习率 2e-4、4bit QLoRA。真实训练数据、adapter、GGUF 文件不随仓库分发。
 
 ```yaml
 llm:

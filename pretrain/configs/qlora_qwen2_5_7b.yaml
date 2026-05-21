@@ -1,0 +1,55 @@
+model:
+  # HuggingFace 基座模型。也可以换成本地模型目录。
+  base_model: Qwen/Qwen2.5-7B-Instruct
+  # 最大上下文长度。显存紧张时可以降到 1024。
+  max_seq_length: 2048
+  # 是否信任模型仓库中的自定义代码。
+  trust_remote_code: true
+
+quantization:
+  # QLoRA 使用 4bit 量化加载基座模型。
+  load_in_4bit: true
+  bnb_4bit_quant_type: nf4
+  bnb_4bit_use_double_quant: true
+  bnb_4bit_compute_dtype: bfloat16
+
+lora:
+  # 图中建议 rank=8。
+  r: 8
+  # 图中建议 alpha=16。
+  alpha: 16
+  dropout: 0.05
+  bias: none
+  task_type: CAUSAL_LM
+  target_modules:
+    - q_proj
+    - k_proj
+    - v_proj
+    - o_proj
+    - gate_proj
+    - up_proj
+    - down_proj
+
+training:
+  # 图中建议学习率 2e-4。
+  learning_rate: 0.0002
+  num_train_epochs: 3
+  per_device_train_batch_size: 1
+  gradient_accumulation_steps: 8
+  warmup_ratio: 0.03
+  lr_scheduler_type: cosine
+  logging_steps: 10
+  save_steps: 100
+  save_total_limit: 2
+  gradient_checkpointing: true
+  optim: paged_adamw_8bit
+  bf16: true
+  fp16: false
+  seed: 42
+
+prompt:
+  system: |
+    你是一个温和、耐心、非诊断性的心理陪伴助手。
+    你需要识别用户表达中的情绪、风险等级和风险类型，并给出安全、简短、可执行的陪伴式回复。
+    不要做医学诊断，不要提供自伤或伤害他人的方法。
+
