@@ -1,5 +1,6 @@
 package com.example.mentalcompanion.service;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.example.mentalcompanion.config.AppProperties;
 import com.example.mentalcompanion.domain.entity.EmailAlertLog;
 import com.example.mentalcompanion.domain.entity.RiskRecord;
@@ -42,8 +43,10 @@ public class EmailAlertService {
         );
         String studentCollege = firstNonBlank(student == null ? null : student.getCollege(), "未配置学院");
         String studentUsername = firstNonBlank(student == null ? null : student.getUsername(), "未配置账号");
+        String studentEmail = firstNonBlank(student == null ? null : student.getEmail(), "未配置邮箱");
         String teacherName = firstNonBlank(appProperties.mail().teacherName(), "未配置负责老师");
         String teacherDepartment = firstNonBlank(appProperties.mail().teacherDepartment(), "未配置部门");
+        String receiver = resolveAlertReceiver();
 
         String subject = "心理陪伴助手高风险预警 - " + studentName;
         String content = """
@@ -53,11 +56,13 @@ public class EmailAlertService {
                 学生姓名：%s
                 学院：%s
                 学生账号：%s
+                学生邮箱：%s
                 学生ID：%s
 
                 【负责老师】
                 老师姓名：%s
                 所属部门：%s
+                预警接收邮箱：%s
 
                 【风险信息】
                 会话ID：%s
@@ -73,16 +78,18 @@ public class EmailAlertService {
                 studentName,
                 studentCollege,
                 studentUsername,
+                studentEmail,
                 riskRecord.getUserId(),
                 teacherName,
                 teacherDepartment,
+                receiver,
                 riskRecord.getSessionId(),
                 riskRecord.getRiskLevel(),
                 firstNonBlank(riskRecord.getRiskType(), "未分类"),
                 riskRecord.getUserMessage(),
                 riskRecord.getAiReply()
         );
-        return send(riskRecord.getId(), appProperties.mail().alertReceiver(), subject, content);
+        return send(riskRecord.getId(), receiver, subject, content);
     }
 
     public boolean sendTest(String receiver) {
@@ -125,10 +132,29 @@ public class EmailAlertService {
         if (receiver == null || receiver.isBlank()) {
             return "Missing mail receiver";
         }
+        if (receiver.trim().toLowerCase().endsWith("@example.com")) {
+            return "Missing real mail receiver, current receiver is an example address";
+        }
         if (appProperties.mail().from() == null || appProperties.mail().from().isBlank()) {
             return "Missing app.mail.from";
         }
         return null;
+    }
+
+    private String resolveAlertReceiver() {
+        String configuredReceiver = appProperties.mail().alertReceiver();
+        if (configuredReceiver != null && !configuredReceiver.isBlank()
+                && !"admin@example.com".equalsIgnoreCase(configuredReceiver.trim())) {
+            return configuredReceiver.trim();
+        }
+        SysUser admin = sysUserMapper.selectOne(new LambdaQueryWrapper<SysUser>()
+                .eq(SysUser::getRole, "ADMIN")
+                .last("LIMIT 1"));
+        String adminEmail = admin == null ? null : admin.getEmail();
+        if (adminEmail != null && !adminEmail.isBlank()) {
+            return adminEmail.trim();
+        }
+        return configuredReceiver;
     }
 
     private String firstNonBlank(String... values) {

@@ -13,6 +13,7 @@
 - 风险识别：结合规则关键词与 LLM JSON 结构化分类，识别 LOW、MEDIUM、HIGH 风险等级。
 - 工具调用：通过 ToolRegistry 统一封装知识检索、工作流记录、Excel 写入、风险记录和邮件预警。
 - 后台管理：支持知识库上传、工作流记录查看、风险记录查看、邮件日志查看和 Excel 导出。
+- 普通用户注册：支持学生自助注册普通账号，登记姓名、学院和邮箱，管理员账号仍由系统初始化或后台维护。
 - 微调工程脚手架：`pretrain/` 提供 Qwen2.5-7B QLoRA 训练、评估、LoRA 合并与 Ollama 部署示例。
 
 ## 技术栈
@@ -163,6 +164,8 @@ http://localhost:5173
 - 管理员：`admin / admin123`
 - 普通用户：`user / user123`
 
+登录页支持普通用户注册。注册用户默认角色为 `USER`，不会获得管理员权限。
+
 ## 演示流程
 
 1. 管理员登录后台。
@@ -200,6 +203,7 @@ http://localhost:5173
 ## 主要接口
 
 - `POST /api/auth/login`
+- `POST /api/auth/register`
 - `POST /api/chat/send`
 - `POST /api/admin/knowledge/upload`
 - `GET /api/admin/knowledge/list`

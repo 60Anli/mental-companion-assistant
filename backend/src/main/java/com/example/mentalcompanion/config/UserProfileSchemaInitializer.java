@@ -18,6 +18,7 @@ public class UserProfileSchemaInitializer {
         addColumnIfMissing("real_name", "VARCHAR(64)");
         addColumnIfMissing("college", "VARCHAR(128)");
         addColumnIfMissing("department", "VARCHAR(128)");
+        addColumnIfMissing("email", "VARCHAR(128)");
         fillDemoProfiles();
     }
 

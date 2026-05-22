@@ -64,6 +64,11 @@ textarea {
   font-size: 30px;
 }
 
+.auth-switch {
+  width: 100%;
+  margin-bottom: 20px;
+}
+
 .login-hints {
   display: flex;
   justify-content: space-between;
