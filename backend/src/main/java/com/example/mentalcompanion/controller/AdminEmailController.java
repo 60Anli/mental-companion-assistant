@@ -29,7 +29,9 @@ public class AdminEmailController {
     @PostMapping("/test")
     public ApiResponse<Boolean> test(@RequestBody(required = false) EmailTestRequest request) {
         String receiver = request == null ? null : request.getReceiver();
-        return ApiResponse.ok(emailAlertService.sendTest(receiver));
+        String subject = request == null ? null : request.getSubject();
+        String content = request == null ? null : request.getContent();
+        return ApiResponse.ok(emailAlertService.sendTest(receiver, subject, content));
     }
 
     @GetMapping("/logs")
@@ -38,4 +40,3 @@ public class AdminEmailController {
                 .orderByDesc(EmailAlertLog::getCreateTime)));
     }
 }
-

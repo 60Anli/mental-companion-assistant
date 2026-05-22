@@ -47,8 +47,14 @@ public class EmailAlertService {
     }
 
     public boolean sendTest(String receiver) {
+        return sendTest(receiver, null, null);
+    }
+
+    public boolean sendTest(String receiver, String subject, String content) {
         String target = receiver == null || receiver.isBlank() ? appProperties.mail().alertReceiver() : receiver;
-        return send(null, target, "心理陪伴助手邮件测试", "这是一封邮件预警通道测试邮件。");
+        String mailSubject = subject == null || subject.isBlank() ? "心理陪伴助手邮件测试" : subject;
+        String mailContent = content == null || content.isBlank() ? "这是一封邮件预警通道测试邮件。" : content;
+        return send(null, target, mailSubject, mailContent);
     }
 
     private boolean send(Long riskRecordId, String receiver, String subject, String content) {
