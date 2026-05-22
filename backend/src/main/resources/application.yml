@@ -144,3 +144,7 @@ app:
     from: ${MAIL_FROM:}
     # 高风险预警收件邮箱。
     alert-receiver: ${MAIL_ALERT_RECEIVER:admin@example.com}
+    # 高风险预警邮件中展示的负责老师姓名。
+    teacher-name: ${MAIL_TEACHER_NAME:王老师}
+    # 高风险预警邮件中展示的负责老师部门。
+    teacher-department: ${MAIL_TEACHER_DEPARTMENT:学生心理健康中心}

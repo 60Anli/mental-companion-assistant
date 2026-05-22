@@ -5,6 +5,9 @@ CREATE TABLE IF NOT EXISTS sys_user (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,
     username VARCHAR(64) NOT NULL UNIQUE,
     password VARCHAR(255) NOT NULL,
+    real_name VARCHAR(64),
+    college VARCHAR(128),
+    department VARCHAR(128),
     role VARCHAR(32) NOT NULL,
     create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
@@ -118,10 +121,20 @@ CREATE TABLE IF NOT EXISTS user_memory (
     INDEX idx_user_memory_type (memory_type)
 );
 
-INSERT INTO sys_user (username, password, role)
-SELECT 'admin', '{noop}admin123', 'ADMIN'
+INSERT INTO sys_user (username, password, real_name, college, department, role)
+SELECT 'admin', '{noop}admin123', '王老师', NULL, '学生心理健康中心', 'ADMIN'
 WHERE NOT EXISTS (SELECT 1 FROM sys_user WHERE username = 'admin');
 
-INSERT INTO sys_user (username, password, role)
-SELECT 'user', '{noop}user123', 'USER'
+INSERT INTO sys_user (username, password, real_name, college, department, role)
+SELECT 'user', '{noop}user123', '张同学', '人工智能学院', NULL, 'USER'
 WHERE NOT EXISTS (SELECT 1 FROM sys_user WHERE username = 'user');
+
+UPDATE sys_user
+SET real_name = COALESCE(real_name, '王老师'),
+    department = COALESCE(department, '学生心理健康中心')
+WHERE username = 'admin';
+
+UPDATE sys_user
+SET real_name = COALESCE(real_name, '张同学'),
+    college = COALESCE(college, '人工智能学院')
+WHERE username = 'user';

@@ -14,7 +14,9 @@ public class SysUser {
     private Long id;
     private String username;
     private String password;
+    private String realName;
+    private String college;
+    private String department;
     private String role;
     private LocalDateTime createTime;
 }
-

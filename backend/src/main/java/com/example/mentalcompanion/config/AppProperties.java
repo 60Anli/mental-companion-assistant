@@ -8,6 +8,6 @@ public record AppProperties(Excel excel, Mail mail) {
     public record Excel(String workflowPath, String exportDir) {
     }
 
-    public record Mail(boolean enabled, String from, String alertReceiver) {
+    public record Mail(boolean enabled, String from, String alertReceiver, String teacherName, String teacherDepartment) {
     }
 }

@@ -3,7 +3,9 @@ package com.example.mentalcompanion.service;
 import com.example.mentalcompanion.config.AppProperties;
 import com.example.mentalcompanion.domain.entity.EmailAlertLog;
 import com.example.mentalcompanion.domain.entity.RiskRecord;
+import com.example.mentalcompanion.domain.entity.SysUser;
 import com.example.mentalcompanion.mapper.EmailAlertLogMapper;
+import com.example.mentalcompanion.mapper.SysUserMapper;
 import org.springframework.mail.MailException;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
@@ -17,29 +19,66 @@ public class EmailAlertService {
     private final AppProperties appProperties;
     private final JavaMailSender mailSender;
     private final EmailAlertLogMapper emailAlertLogMapper;
+    private final SysUserMapper sysUserMapper;
 
-    public EmailAlertService(AppProperties appProperties, JavaMailSender mailSender, EmailAlertLogMapper emailAlertLogMapper) {
+    public EmailAlertService(
+            AppProperties appProperties,
+            JavaMailSender mailSender,
+            EmailAlertLogMapper emailAlertLogMapper,
+            SysUserMapper sysUserMapper
+    ) {
         this.appProperties = appProperties;
         this.mailSender = mailSender;
         this.emailAlertLogMapper = emailAlertLogMapper;
+        this.sysUserMapper = sysUserMapper;
     }
 
     public boolean sendRiskAlert(RiskRecord riskRecord) {
-        String subject = "心理陪伴助手高风险预警";
-        String content = """
-                检测到高风险会话，请管理员尽快关注。
+        SysUser student = sysUserMapper.selectById(riskRecord.getUserId());
+        String studentName = firstNonBlank(
+                student == null ? null : student.getRealName(),
+                student == null ? null : student.getUsername(),
+                "未知学生"
+        );
+        String studentCollege = firstNonBlank(student == null ? null : student.getCollege(), "未配置学院");
+        String studentUsername = firstNonBlank(student == null ? null : student.getUsername(), "未配置账号");
+        String teacherName = firstNonBlank(appProperties.mail().teacherName(), "未配置负责老师");
+        String teacherDepartment = firstNonBlank(appProperties.mail().teacherDepartment(), "未配置部门");
 
-                用户ID：%s
+        String subject = "心理陪伴助手高风险预警 - " + studentName;
+        String content = """
+                检测到高风险会话，请负责老师尽快关注。
+
+                【学生信息】
+                学生姓名：%s
+                学院：%s
+                学生账号：%s
+                学生ID：%s
+
+                【负责老师】
+                老师姓名：%s
+                所属部门：%s
+
+                【风险信息】
                 会话ID：%s
                 风险等级：%s
                 风险类型：%s
-                用户内容：%s
-                AI回复：%s
+
+                【学生原文】
+                %s
+
+                【AI安全回复】
+                %s
                 """.formatted(
+                studentName,
+                studentCollege,
+                studentUsername,
                 riskRecord.getUserId(),
+                teacherName,
+                teacherDepartment,
                 riskRecord.getSessionId(),
                 riskRecord.getRiskLevel(),
-                riskRecord.getRiskType(),
+                firstNonBlank(riskRecord.getRiskType(), "未分类"),
                 riskRecord.getUserMessage(),
                 riskRecord.getAiReply()
         );
@@ -90,6 +129,18 @@ public class EmailAlertService {
             return "Missing app.mail.from";
         }
         return null;
+    }
+
+    private String firstNonBlank(String... values) {
+        if (values == null) {
+            return "";
+        }
+        for (String value : values) {
+            if (value != null && !value.isBlank()) {
+                return value;
+            }
+        }
+        return "";
     }
 
     private void saveLog(Long riskRecordId, String receiver, String subject, String content, String status, String error) {
