@@ -23,6 +23,7 @@
         <jjwt.version>0.12.5</jjwt.version>
         <easyexcel.version>3.3.4</easyexcel.version>
         <langchain4j.version>0.36.2</langchain4j.version>
+        <lucene.version>9.11.1</lucene.version>
     </properties>
 
     <dependencies>
@@ -82,6 +83,26 @@
             <groupId>dev.langchain4j</groupId>
             <artifactId>langchain4j</artifactId>
             <version>${langchain4j.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.lucene</groupId>
+            <artifactId>lucene-core</artifactId>
+            <version>${lucene.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.lucene</groupId>
+            <artifactId>lucene-analysis-common</artifactId>
+            <version>${lucene.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.lucene</groupId>
+            <artifactId>lucene-analysis-smartcn</artifactId>
+            <version>${lucene.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.lucene</groupId>
+            <artifactId>lucene-queryparser</artifactId>
+            <version>${lucene.version}</version>
         </dependency>
         <dependency>
             <groupId>org.projectlombok</groupId>

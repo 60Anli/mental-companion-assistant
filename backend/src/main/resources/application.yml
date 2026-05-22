@@ -117,6 +117,20 @@ chroma:
   # 每次用户提问检索的知识片段数量。
   top-k: ${CHROMA_TOP_K:4}
 
+retrieval:
+  # 检索模式：hybrid = Chroma 向量召回 + Lucene BM25 关键词召回 + RRF 融合；dense = 只用向量；sparse = 只用 BM25。
+  mode: ${RETRIEVAL_MODE:hybrid}
+  # 向量召回候选数量。通常大于最终 top-k，方便后续融合排序。
+  dense-top-k: ${RETRIEVAL_DENSE_TOP_K:8}
+  # BM25 关键词召回候选数量。中文分词使用 Lucene SmartChineseAnalyzer。
+  sparse-top-k: ${RETRIEVAL_SPARSE_TOP_K:8}
+  # RRF 融合排序常数，常用默认值 60；数值越大，头部名次差异影响越平滑。
+  rrf-k: ${RETRIEVAL_RRF_K:60}
+  # Lucene BM25 本地索引目录。该目录会自动创建，不建议提交到 Git。
+  lucene-index-path: ${RETRIEVAL_LUCENE_INDEX_PATH:./data/lucene/knowledge}
+  # 启动时是否根据 MySQL 中的 knowledge_chunk 重建 BM25 索引，便于容器重启或索引目录丢失后恢复。
+  rebuild-on-startup: ${RETRIEVAL_REBUILD_ON_STARTUP:true}
+
 app:
   excel:
     # 非闲聊 workflow_record 每次追加写入的 Excel 文件。
@@ -130,4 +144,3 @@ app:
     from: ${MAIL_FROM:}
     # 高风险预警收件邮箱。
     alert-receiver: ${MAIL_ALERT_RECEIVER:admin@example.com}
-

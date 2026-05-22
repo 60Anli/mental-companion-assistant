@@ -9,6 +9,7 @@ __pycache__/
 *.pyc
 data/*.xlsx
 data/exported/
+data/lucene/
 backend/logs/
 backend/src/main/resources/application-local.yml
 frontend/.env.local

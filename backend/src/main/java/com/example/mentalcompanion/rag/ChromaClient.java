@@ -56,6 +56,7 @@ public class ChromaClient {
             metadata.put("documentId", chunk.documentId());
             metadata.put("documentName", chunk.documentName());
             metadata.put("chunkIndex", chunk.chunkIndex());
+            metadata.put("chunkId", chunk.id());
             metadatas.add(metadata);
         }
         restTemplate.postForObject(url("/api/v1/collections/" + id + "/add"), body, JsonNode.class);
@@ -136,4 +137,3 @@ public class ChromaClient {
         return properties.baseUrl().replaceAll("/+$", "") + path;
     }
 }
-

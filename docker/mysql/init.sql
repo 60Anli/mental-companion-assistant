@@ -69,6 +69,17 @@ CREATE TABLE IF NOT EXISTS knowledge_document (
     create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS knowledge_chunk (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    document_id BIGINT NOT NULL,
+    document_name VARCHAR(255) NOT NULL,
+    chunk_index INT NOT NULL,
+    content MEDIUMTEXT NOT NULL,
+    create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_knowledge_chunk_doc (document_id),
+    INDEX idx_knowledge_chunk_time (create_time)
+);
+
 CREATE TABLE IF NOT EXISTS email_alert_log (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,
     risk_record_id BIGINT,
