@@ -6,7 +6,7 @@ const http = axios.create({
 })
 
 http.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token')
+  const token = sessionStorage.getItem('token')
   if (token) {
     config.headers.Authorization = `Bearer ${token}`
   }
@@ -22,4 +22,3 @@ http.interceptors.response.use(
 )
 
 export default http
-

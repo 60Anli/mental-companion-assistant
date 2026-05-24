@@ -30,6 +30,10 @@ export function fetchModelRuntime() {
   return http.get('/admin/model/runtime')
 }
 
+export function fetchUsers() {
+  return http.get('/admin/users')
+}
+
 export function sendTestEmail(receiver) {
   return http.post('/admin/email/test', { receiver })
 }

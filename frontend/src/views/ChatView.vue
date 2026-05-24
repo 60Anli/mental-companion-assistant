@@ -3,10 +3,12 @@
     <aside class="sidebar">
       <div class="brand-row">
         <div>
-          <p class="eyebrow">MVP</p>
+          <p class="eyebrow">MindCare</p>
           <h2>心理陪伴助手</h2>
         </div>
-        <el-button :icon="SwitchButton" circle @click="logout" />
+        <el-tooltip content="退出登录">
+          <el-button :icon="SwitchButton" circle @click="logout" />
+        </el-tooltip>
       </div>
       <el-button class="full-button" type="primary" :icon="Plus" @click="newSession">新会话</el-button>
       <div class="session-list">
@@ -21,7 +23,7 @@
           <span>{{ session.title }}</span>
         </button>
       </div>
-      <el-button v-if="auth.role === 'ADMIN'" :icon="Setting" @click="router.push('/admin')">管理员</el-button>
+      <el-button v-if="auth.role === 'ADMIN'" :icon="Setting" @click="router.push('/admin')">管理后台</el-button>
     </aside>
 
     <main class="chat-main">
@@ -30,6 +32,7 @@
           <p class="eyebrow">Chat Workflow</p>
           <h1>陪伴对话</h1>
         </div>
+        <el-tag effect="plain">{{ auth.username }}</el-tag>
       </header>
 
       <section class="message-list">
@@ -44,7 +47,7 @@
           type="textarea"
           :autosize="{ minRows: 2, maxRows: 5 }"
           resize="none"
-          placeholder="输入想聊的话..."
+          placeholder="输入你想聊的话..."
           @keydown.enter.exact.prevent="submit"
         />
         <el-button type="primary" :icon="Promotion" :loading="sending" @click="submit">发送</el-button>
@@ -53,14 +56,16 @@
 
     <aside class="status-panel">
       <div class="panel-head">
-        <p class="eyebrow">Workflow</p>
-        <h2>执行状态</h2>
+        <div>
+          <p class="eyebrow">Workflow</p>
+          <h2>执行状态</h2>
+        </div>
       </div>
       <div class="status-grid">
         <span>当前意图类型</span><strong>{{ state.intent || '-' }}</strong>
         <span>当前风险等级</span><strong :class="riskClass">{{ state.riskLevel || '-' }}</strong>
         <span>是否执行 RAG</span><strong>是</strong>
-        <span>RAG 命中文档数量</span><strong>{{ state.references?.length || 0 }}</strong>
+        <span>RAG 命中文档数</span><strong>{{ state.references?.length || 0 }}</strong>
         <span>是否写入 Excel</span><strong>{{ hasAction('WRITE_EXCEL') ? '是' : '否' }}</strong>
         <span>是否发送邮件</span><strong>{{ hasAction('SEND_EMAIL_ALERT') ? '是' : '否' }}</strong>
       </div>
@@ -155,4 +160,3 @@ function logout() {
 
 onMounted(loadSessions)
 </script>
-

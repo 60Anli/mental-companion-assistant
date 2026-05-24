@@ -66,8 +66,8 @@ const modeOptions = [
 ]
 
 const loginForm = reactive({
-  username: 'admin',
-  password: 'admin123'
+  username: '',
+  password: ''
 })
 
 const registerForm = reactive({
