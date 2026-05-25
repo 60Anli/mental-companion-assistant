@@ -1,0 +1,16 @@
+[Unit]
+Description=Mental Companion Assistant Backend
+After=network.target docker.service
+Requires=docker.service
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/mindcare/mental-companion-assistant
+EnvironmentFile=/etc/mental-companion/mental-companion.env
+ExecStart=/usr/bin/java -jar /opt/mindcare/mental-companion-assistant/backend/target/mental-companion-assistant-0.0.1-SNAPSHOT.jar
+Restart=always
+RestartSec=5
+User=root
+
+[Install]
+WantedBy=multi-user.target
