@@ -17,15 +17,11 @@ import com.example.mentalcompanion.llm.LlmClient;
 import com.example.mentalcompanion.mapper.ChatMessageMapper;
 import com.example.mentalcompanion.mapper.ChatSessionMapper;
 import com.example.mentalcompanion.mapper.WorkflowRecordMapper;
-import com.example.mentalcompanion.tool.ToolRegistry;
-import com.example.mentalcompanion.tool.ToolRequest;
+import com.example.mentalcompanion.mcp.McpToolClient;
+import com.example.mentalcompanion.mcp.McpToolNames;
 import com.example.mentalcompanion.tool.ToolResult;
-import com.example.mentalcompanion.tool.impl.EmailAlertTool;
-import com.example.mentalcompanion.tool.impl.KnowledgeSearchTool;
-import com.example.mentalcompanion.tool.impl.RiskRecordTool;
-import com.example.mentalcompanion.tool.impl.WorkflowExcelTool;
-import com.example.mentalcompanion.tool.impl.WorkflowRecordTool;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -33,6 +29,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 @Service
 public class ChatWorkflowService {
@@ -40,7 +37,7 @@ public class ChatWorkflowService {
     private final ChatSessionMapper chatSessionMapper;
     private final ChatMessageMapper chatMessageMapper;
     private final WorkflowRecordMapper workflowRecordMapper;
-    private final ToolRegistry toolRegistry;
+    private final McpToolClient mcpToolClient;
     private final IntentRecognitionService intentRecognitionService;
     private final RiskRuleService riskRuleService;
     private final ShortTermMemoryService shortTermMemoryService;
@@ -53,7 +50,7 @@ public class ChatWorkflowService {
             ChatSessionMapper chatSessionMapper,
             ChatMessageMapper chatMessageMapper,
             WorkflowRecordMapper workflowRecordMapper,
-            ToolRegistry toolRegistry,
+            McpToolClient mcpToolClient,
             IntentRecognitionService intentRecognitionService,
             RiskRuleService riskRuleService,
             ShortTermMemoryService shortTermMemoryService,
@@ -65,7 +62,7 @@ public class ChatWorkflowService {
         this.chatSessionMapper = chatSessionMapper;
         this.chatMessageMapper = chatMessageMapper;
         this.workflowRecordMapper = workflowRecordMapper;
-        this.toolRegistry = toolRegistry;
+        this.mcpToolClient = mcpToolClient;
         this.intentRecognitionService = intentRecognitionService;
         this.riskRuleService = riskRuleService;
         this.shortTermMemoryService = shortTermMemoryService;
@@ -83,14 +80,12 @@ public class ChatWorkflowService {
 
         List<String> actions = new ArrayList<>();
         actions.add("RAG_SEARCH");
-        ToolResult ragResult = toolRegistry.execute(
-                KnowledgeSearchTool.TOOL_NAME,
-                ToolRequest.of("query", request.getMessage(), "topK", chromaProperties.topK())
+        ToolResult ragResult = mcpToolClient.callTool(
+                McpToolNames.KNOWLEDGE_SEARCH,
+                Map.of("query", request.getMessage(), "topK", chromaProperties.topK())
         );
-        @SuppressWarnings("unchecked")
-        List<RagReference> references = ragResult.getData() instanceof List<?> list
-                ? (List<RagReference>) list
-                : List.of();
+        List<RagReference> references = convertToolData(ragResult, new TypeReference<>() {
+        }, List.of());
         String ragContext = ragContext(references);
         actions.add("LOAD_SHORT_TERM_MEMORY");
         String shortTermMemory = shortTermMemoryService.recentContext(userId, sessionId);
@@ -131,22 +126,25 @@ public class ChatWorkflowService {
 
         WorkflowRecord workflowRecord = buildWorkflowRecord(userId, sessionId, request.getMessage(), finalIntent, finalRisk, riskType, references, reply);
         actions.add("SAVE_WORKFLOW_RECORD");
-        workflowRecord = (WorkflowRecord) toolRegistry
-                .execute(WorkflowRecordTool.TOOL_NAME, ToolRequest.of("record", workflowRecord))
-                .getData();
+        workflowRecord = convertToolData(
+                mcpToolClient.callTool(McpToolNames.SAVE_WORKFLOW_RECORD, Map.of("record", workflowRecord)),
+                WorkflowRecord.class
+        );
 
         if (finalIntent == IntentType.HIGH_RISK) {
             actions.add("SAVE_RISK_RECORD");
             RiskRecord riskRecord = buildRiskRecord(userId, sessionId, request.getMessage(), finalRisk, riskType, reply);
-            riskRecord = (RiskRecord) toolRegistry
-                    .execute(RiskRecordTool.TOOL_NAME, ToolRequest.of("riskRecord", riskRecord))
-                    .getData();
+            riskRecord = convertToolData(
+                    mcpToolClient.callTool(McpToolNames.SAVE_RISK_RECORD, Map.of("riskRecord", riskRecord)),
+                    RiskRecord.class
+            );
             actions.add("WRITE_EXCEL");
-            toolRegistry.execute(WorkflowExcelTool.TOOL_NAME, ToolRequest.of("record", workflowRecord));
+            mcpToolClient.callTool(McpToolNames.APPEND_WORKFLOW_EXCEL, Map.of("record", workflowRecord));
             actions.add("SEND_EMAIL_ALERT");
-            Boolean emailSent = (Boolean) toolRegistry
-                    .execute(EmailAlertTool.TOOL_NAME, ToolRequest.of("riskRecord", riskRecord))
-                    .getData();
+            Boolean emailSent = convertToolData(
+                    mcpToolClient.callTool(McpToolNames.SEND_EMAIL_ALERT, Map.of("riskRecord", riskRecord)),
+                    Boolean.class
+            );
             workflowRecord.setEmailSent(Boolean.TRUE.equals(emailSent));
             workflowRecordMapper.updateById(workflowRecord);
             response.setActions(actions);
@@ -154,7 +152,7 @@ public class ChatWorkflowService {
         }
 
         actions.add("WRITE_EXCEL");
-        toolRegistry.execute(WorkflowExcelTool.TOOL_NAME, ToolRequest.of("record", workflowRecord));
+        mcpToolClient.callTool(McpToolNames.APPEND_WORKFLOW_EXCEL, Map.of("record", workflowRecord));
         response.setActions(actions);
         return response;
     }
@@ -286,5 +284,19 @@ public class ChatWorkflowService {
         } catch (JsonProcessingException ex) {
             return "[]";
         }
+    }
+
+    private <T> T convertToolData(ToolResult result, Class<T> type) {
+        if (result == null || !result.isSuccess()) {
+            throw new IllegalStateException(result == null ? "MCP tool returned empty result" : result.getMessage());
+        }
+        return objectMapper.convertValue(result.getData(), type);
+    }
+
+    private <T> T convertToolData(ToolResult result, TypeReference<T> typeReference, T fallback) {
+        if (result == null || !result.isSuccess() || result.getData() == null) {
+            return fallback;
+        }
+        return objectMapper.convertValue(result.getData(), typeReference);
     }
 }

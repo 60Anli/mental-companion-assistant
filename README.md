@@ -11,7 +11,7 @@
 - Hybrid RAG：集成 Chroma 向量检索、Lucene BM25 稀疏检索与 RRF 融合排序，兼顾语义召回和关键词精确匹配。
 - 记忆机制：Redis 保存最近 10 轮短期记忆，MySQL 保存长期记忆摘要，增强多轮对话连续性。
 - 风险与情绪识别：意图识别分为闲聊、咨询、高风险三类；咨询场景继续识别正常、焦虑、失落、高风险等情绪状态，高风险结果会触发邮件预警。
-- 工具调用：通过 ToolRegistry 统一封装知识检索、工作流记录、Excel 写入、风险记录和邮件预警。
+- 标准 MCP 工具调用：后端作为 Agent Host，通过 MCP Client 调用 `/mcp` 暴露的工具，完成知识检索、记录写入、Excel 留痕、风险记录和邮件预警。
 - 后台管理：支持知识库上传、工作流记录查看、风险记录查看、邮件日志查看和 Excel 导出。
 - 普通用户注册：支持学生自助注册普通账号，登记姓名、学院和邮箱，管理员账号仍由系统初始化或后台维护。
 - 微调工程脚手架：`pretrain/` 提供 Qwen2.5-7B QLoRA 训练、评估、LoRA 合并与 Ollama 部署示例。
@@ -21,7 +21,7 @@
 - 后端：Java 17, Spring Boot 3, Spring Security, JWT, MyBatis-Plus
 - 数据：MySQL, Redis, Chroma, Lucene
 - AI：Ollama, OpenAI-compatible API, Prompt Engineering, Hybrid RAG
-- 工具：Spring Mail, EasyExcel, Docker Compose
+- 工具：标准 MCP JSON-RPC, Spring Mail, EasyExcel, Docker Compose
 - 前端：Vue3, Element Plus, Vite
 
 ## 工作流
@@ -50,6 +50,26 @@ flowchart TD
     G --> O[返回响应]
     L --> O
     N --> O
+```
+
+## MCP 工具调用
+
+项目已将原来的本地工具注册调用升级为标准 MCP JSON-RPC 工具调用。主后端既是 Agent Host，也内置 MCP Server 端点 `/mcp`；`ChatWorkflowService` 不再直接调用工具 Bean，而是通过 MCP Client 调用标准工具名：
+
+- `knowledge_search`：执行 Hybrid RAG 检索。
+- `save_workflow_record`：写入非闲聊工作流记录。
+- `append_workflow_excel`：追加写入 Excel。
+- `save_risk_record`：写入高风险记录。
+- `send_email_alert`：发送高风险邮件预警并写日志。
+
+上线时可通过 `MCP_ACCESS_TOKEN` 为 `/mcp` 调用增加访问令牌；如果后续要拆成独立 MCP Server，只需要把 `MCP_CLIENT_URL` 改成独立服务地址。
+
+```yaml
+mcp:
+  enabled: true
+  client:
+    url: http://127.0.0.1:8080/mcp
+    access-token: ${MCP_ACCESS_TOKEN:}
 ```
 
 ## 混合检索设计

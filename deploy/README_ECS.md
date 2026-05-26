@@ -99,6 +99,9 @@ REDIS_DATABASE=0
 
 CHROMA_BASE_URL=http://127.0.0.1:8000
 
+# MCP 工具调用令牌。后端会用它调用本机 /mcp 端点；Nginx 默认不暴露 /mcp。
+MCP_ACCESS_TOKEN=请换成随机长字符串
+
 LLM_API_KEY=你的在线大模型APIKey
 LLM_MODEL=qwen-plus
 LLM_EMBEDDING_MODEL=text-embedding-v3
@@ -164,6 +167,7 @@ http://你的公网IP
 3. 注册一个普通用户。
 4. 使用普通用户测试知识库问答。
 5. 输入高风险语句，检查 `email_alert_log` 和收件箱。
+6. 查看后端日志中是否出现 `MCP tool call: knowledge_search`，用于确认工具链已经走标准 MCP 调用。
 
 ## 11. 本地更新后如何同步到线上
 

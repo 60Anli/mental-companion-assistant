@@ -95,6 +95,24 @@ llm:
   # 嵌入模型，用于知识库切片和用户问题向量化，是 RAG 检索必须的。
   embedding-model: ${LLM_EMBEDDING_MODEL:text-embedding-v3}
 
+mcp:
+  # 是否启用标准 MCP 工具调用。true 表示 ChatWorkflowService 通过 MCP Client 调用工具。
+  enabled: ${MCP_ENABLED:true}
+  client:
+    # MCP Server 的 HTTP 入口。默认指向当前后端内置的 /mcp 端点；如果拆成独立 MCP 服务，改成对应服务地址。
+    url: ${MCP_CLIENT_URL:http://127.0.0.1:8080/mcp}
+    # MCP HTTP 调用访问令牌。为空表示本地开发不校验；上线建议配置为随机长字符串。
+    access-token: ${MCP_ACCESS_TOKEN:}
+  server:
+    # MCP Server 名称，会在 initialize 响应中返回。
+    name: ${MCP_SERVER_NAME:mindcare-mcp-server}
+    # MCP Server 版本，会在 initialize 响应中返回。
+    version: ${MCP_SERVER_VERSION:1.0.0}
+    # MCP 协议版本。当前项目按 JSON-RPC MCP 工具调用结构实现。
+    protocol-version: ${MCP_PROTOCOL_VERSION:2025-06-18}
+    # MCP Server 校验的访问令牌。和 client.access-token 使用同一个环境变量即可。
+    access-token: ${MCP_ACCESS_TOKEN:}
+
 fine-tune:
   # 是否启用本地微调模型接入标识。该配置用于运行状态展示和部署切换。
   enabled: ${FINE_TUNE_ENABLED:false}
