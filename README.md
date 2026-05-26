@@ -7,10 +7,10 @@
 ## 核心能力
 
 - 大模型接入：支持 Ollama 本地模型与 OpenAI-compatible API，可通过配置切换模型提供方。
-- Agent 工作流编排：用户输入后依次执行 RAG 检索、意图识别、风险判断、分流回复、记录写入和工具调用。
+- Agent 工作流编排：用户输入后依次执行 RAG 检索、三分类意图识别、咨询场景情绪识别、风险判断、分流回复、记录写入和工具调用。
 - Hybrid RAG：集成 Chroma 向量检索、Lucene BM25 稀疏检索与 RRF 融合排序，兼顾语义召回和关键词精确匹配。
 - 记忆机制：Redis 保存最近 10 轮短期记忆，MySQL 保存长期记忆摘要，增强多轮对话连续性。
-- 风险识别：结合规则关键词与 LLM JSON 结构化分类，识别 LOW、MEDIUM、HIGH 风险等级。
+- 风险与情绪识别：意图识别分为闲聊、咨询、高风险三类；咨询场景继续识别正常、焦虑、失落、高风险等情绪状态，高风险结果会触发邮件预警。
 - 工具调用：通过 ToolRegistry 统一封装知识检索、工作流记录、Excel 写入、风险记录和邮件预警。
 - 后台管理：支持知识库上传、工作流记录查看、风险记录查看、邮件日志查看和 Excel 导出。
 - 普通用户注册：支持学生自助注册普通账号，登记姓名、学院和邮箱，管理员账号仍由系统初始化或后台维护。
@@ -35,23 +35,21 @@ flowchart TD
     C1 --> C3[RRF 融合排序]
     C2 --> C3
     C3 --> D[加载短期记忆和长期记忆]
-    D --> E[LLM 意图识别]
-    E --> F[规则风险识别]
-    F --> G[合并风险等级]
-    G --> H{意图分流}
-    H -->|CHAT| I[自然聊天回复]
-    H -->|CONSULT| J[心理陪伴回复]
-    H -->|KNOWLEDGE| K[知识库增强回答]
-    H -->|HIGH_RISK| L[安全危机回复]
-    J --> M[写入 workflow_record]
-    K --> M
-    L --> M
-    M --> N[追加写入 Excel]
-    L --> O[写入 risk_record]
-    O --> P[发送邮件预警]
-    I --> Q[返回响应]
-    N --> Q
-    P --> Q
+    D --> E[LLM 意图识别: 闲聊/咨询/高风险]
+    E --> F{意图分流}
+    F -->|闲聊| G[自然聊天回复]
+    F -->|咨询| H[情绪识别: 正常/焦虑/失落/高风险]
+    H -->|正常/焦虑/失落| I[心理陪伴与知识库增强回复]
+    H -->|高风险| J[安全危机回复]
+    F -->|高风险| J
+    I --> K[写入 workflow_record]
+    J --> K
+    K --> L[追加写入 Excel]
+    J --> M[写入 risk_record]
+    M --> N[发送邮件预警]
+    G --> O[返回响应]
+    L --> O
+    N --> O
 ```
 
 ## 混合检索设计
@@ -63,15 +61,15 @@ flowchart TD
 - Chroma 保存切片向量，用于 Dense Retrieval。
 - Lucene 保存 BM25 索引，用于 Sparse Retrieval。
 
-查询时系统会同时执行向量召回和 BM25 召回，并使用 RRF 融合排序得到最终 topK 片段，再拼入 Prompt 生成回答。相比单纯向量检索，混合检索对心理学术语、关键词明确的问题和语义表达变化更稳定。
+查询时系统会同时执行向量召回和 BM25 召回，并使用 RRF 融合排序得到最终 topK 片段，默认取 3 个片段拼入 Prompt 生成回答。相比单纯向量检索，混合检索对心理学术语、关键词明确的问题和语义表达变化更稳定。
 
 相关配置：
 
 ```yaml
 retrieval:
   mode: hybrid
-  dense-top-k: 8
-  sparse-top-k: 8
+  dense-top-k: 3
+  sparse-top-k: 3
   rrf-k: 60
   lucene-index-path: ./data/lucene/knowledge
   rebuild-on-startup: true
@@ -180,25 +178,25 @@ http://localhost:5173
 你好，今天有点无聊。
 ```
 
-预期：CHAT，自然回复，不写 Excel，不发邮件。
+预期：闲聊，自然回复，不写 Excel，不发邮件。
 
 ```text
 我最近压力很大，经常睡不着，感觉很累。
 ```
 
-预期：CONSULT，写入 workflow_record 和 Excel，不发邮件。
+预期：咨询，并进一步识别情绪状态为焦虑或失落；写入 workflow_record 和 Excel，不发邮件。
 
 ```text
 长期焦虑时可以用哪些放松方法？
 ```
 
-预期：KNOWLEDGE，基于 Hybrid RAG 返回知识库增强回答。
+预期：咨询类知识问答，基于 Hybrid RAG 返回知识库增强回答，情绪状态为正常。
 
 ```text
 我真的活不下去了，想结束这一切。
 ```
 
-预期：HIGH_RISK，写入 workflow_record、risk_record 和 Excel，并触发邮件预警。
+预期：高风险，写入 workflow_record、risk_record 和 Excel，并触发邮件预警。
 
 ## 主要接口
 
