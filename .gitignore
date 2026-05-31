@@ -12,6 +12,9 @@ data/exported/
 data/lucene/
 backend/logs/
 backend/src/main/resources/application-local.yml
+backend-python/.env
+backend-python/.venv/
+backend-python/venv/
 frontend/.env.local
 pretrain/data/raw/
 pretrain/data/processed/

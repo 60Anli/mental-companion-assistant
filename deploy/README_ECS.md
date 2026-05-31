@@ -70,7 +70,7 @@ MYSQL_ROOT_PASSWORD=请换成强密码
 REDIS_PASSWORD=请换成强密码
 ```
 
-启动 MySQL、Redis、Chroma：
+启动 MySQL、Redis、Chroma、Qdrant：
 
 ```bash
 cd /opt/mindcare/mental-companion-assistant
@@ -98,6 +98,7 @@ REDIS_PASSWORD=和 infra.env 中 REDIS_PASSWORD 一致
 REDIS_DATABASE=0
 
 CHROMA_BASE_URL=http://127.0.0.1:8000
+QDRANT_URL=http://127.0.0.1:6333
 
 # MCP 工具调用令牌。后端会用它调用本机 /mcp 端点；Nginx 默认不暴露 /mcp。
 MCP_ACCESS_TOKEN=请换成随机长字符串

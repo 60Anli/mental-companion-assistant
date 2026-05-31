@@ -43,7 +43,17 @@ services:
       IS_PERSISTENT: "TRUE"
       ANONYMIZED_TELEMETRY: "FALSE"
 
+  qdrant:
+    image: qdrant/qdrant:v1.12.5
+    container_name: mental-companion-qdrant
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:6333:6333"
+    volumes:
+      - qdrant_data:/qdrant/storage
+
 volumes:
   mysql_data:
   redis_data:
   chroma_data:
+  qdrant_data:

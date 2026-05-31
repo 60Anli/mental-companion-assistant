@@ -7,20 +7,20 @@
 ## 核心能力
 
 - 大模型接入：支持 Ollama 本地模型与 OpenAI-compatible API，可通过配置切换模型提供方。
-- Agent 工作流编排：用户输入后依次执行 RAG 检索、三分类意图识别、咨询场景情绪识别、风险判断、分流回复、记录写入和工具调用。
-- Hybrid RAG：集成 Chroma 向量检索、Lucene BM25 稀疏检索与 RRF 融合排序，兼顾语义召回和关键词精确匹配。
+- Agent 工作流编排：Python 版使用 LangGraph 实现 ReAct 风格智能体，以 Thought -> Action -> Observation 循环执行检索、分类、风险判断、回复生成和工具调用。
+- Hybrid RAG：Java 版集成 Chroma + Lucene BM25 + RRF；Python 版升级为 Qdrant 向量召回 + BM25 关键词召回 + RRF 融合 + Cross-Encoder 重排序。
 - 记忆机制：Redis 保存最近 10 轮短期记忆，MySQL 保存长期记忆摘要，增强多轮对话连续性。
 - 风险与情绪识别：意图识别分为闲聊、咨询、高风险三类；咨询场景继续识别正常、焦虑、失落、高风险等情绪状态，高风险结果会触发邮件预警。
-- 标准 MCP 工具调用：后端作为 Agent Host，通过 MCP Client 调用 `/mcp` 暴露的工具，完成知识检索、记录写入、Excel 留痕、风险记录和邮件预警。
+- 标准 MCP 工具调用：Java 版后端作为 Agent Host，通过 MCP Client 调用 `/mcp` 暴露的工具；Python 版后端以 FastAPI 服务实现同等 Agent 工作流。
 - 后台管理：支持知识库上传、工作流记录查看、风险记录查看、邮件日志查看和 Excel 导出。
 - 普通用户注册：支持学生自助注册普通账号，登记姓名、学院和邮箱，管理员账号仍由系统初始化或后台维护。
 - 微调工程脚手架：`pretrain/` 提供 Qwen2.5-7B QLoRA 训练、评估、LoRA 合并与 Ollama 部署示例。
 
 ## 技术栈
 
-- 后端：Java 17, Spring Boot 3, Spring Security, JWT, MyBatis-Plus
-- 数据：MySQL, Redis, Chroma, Lucene
-- AI：Ollama, OpenAI-compatible API, Prompt Engineering, Hybrid RAG
+- 后端：Java 17 / Spring Boot 3，Python / FastAPI / LangGraph
+- 数据：MySQL, Redis, Qdrant, Chroma, Lucene
+- AI：Ollama, OpenAI-compatible API, Prompt Engineering, Hybrid RAG, Cross-Encoder Reranker
 - 工具：标准 MCP JSON-RPC, Spring Mail, EasyExcel, Docker Compose
 - 前端：Vue3, Element Plus, Vite
 
@@ -29,12 +29,14 @@
 ```mermaid
 flowchart TD
     A[用户输入] --> B[保存用户消息]
-    B --> C[Hybrid RAG 检索]
-    C --> C1[Chroma 向量召回]
-    C --> C2[Lucene BM25 关键词召回]
+    B --> R[LangGraph ReAct Agent]
+    R --> C[Hybrid RAG 检索]
+    C --> C1[Qdrant 向量召回]
+    C --> C2[BM25 关键词召回]
     C1 --> C3[RRF 融合排序]
     C2 --> C3
-    C3 --> D[加载短期记忆和长期记忆]
+    C3 --> C4[Cross-Encoder 重排序]
+    C4 --> D[加载短期记忆和长期记忆]
     D --> E[LLM 意图识别: 闲聊/咨询/高风险]
     E --> F{意图分流}
     F -->|闲聊| G[自然聊天回复]
@@ -54,7 +56,7 @@ flowchart TD
 
 ## MCP 工具调用
 
-项目已将原来的本地工具注册调用升级为标准 MCP JSON-RPC 工具调用。主后端既是 Agent Host，也内置 MCP Server 端点 `/mcp`；`ChatWorkflowService` 不再直接调用工具 Bean，而是通过 MCP Client 调用标准工具名：
+Java 版项目已将原来的本地工具注册调用升级为标准 MCP JSON-RPC 工具调用。主后端既是 Agent Host，也内置 MCP Server 端点 `/mcp`；`ChatWorkflowService` 不再直接调用工具 Bean，而是通过 MCP Client 调用标准工具名：
 
 - `knowledge_search`：执行 Hybrid RAG 检索。
 - `save_workflow_record`：写入非闲聊工作流记录。
@@ -74,25 +76,28 @@ mcp:
 
 ## 混合检索设计
 
-知识库文档上传后会被切片，并同时写入 MySQL、Chroma 和 Lucene：
+Python 版聊天入口由 LangGraph ReAct Agent 编排。Agent 状态图包含 `reason`、`act`、`observe` 三类节点：`reason` 根据当前状态决定下一步动作，`act` 执行对应工具，`observe` 记录结果并回到 `reason`，直到构造最终响应。返回结果中的 `reactTrace` 会记录每一步 thought/action/observation，便于演示 Agent 推理链路。
+
+Python 版知识库文档上传后会被切片，并同时写入 MySQL 和 Qdrant：
 
 - MySQL `knowledge_document` 保存原始文档。
 - MySQL `knowledge_chunk` 保存文档切片。
-- Chroma 保存切片向量，用于 Dense Retrieval。
-- Lucene 保存 BM25 索引，用于 Sparse Retrieval。
+- Qdrant 保存切片向量，用于 Dense Retrieval。
+- BM25 从 MySQL 切片构建关键词召回候选。
 
-查询时系统会同时执行向量召回和 BM25 召回，并使用 RRF 融合排序得到最终 topK 片段，默认取 3 个片段拼入 Prompt 生成回答。相比单纯向量检索，混合检索对心理学术语、关键词明确的问题和语义表达变化更稳定。
+查询时系统会同时执行 Qdrant 向量召回和 BM25 关键词召回，先用 RRF 融合候选，再使用 Cross-Encoder 对候选片段进行 query-document 相关性重排序，默认取 3 个片段拼入 Prompt 生成回答。相比单纯向量检索，该 pipeline 对心理学术语、关键词明确的问题和语义表达变化更稳定。
 
 相关配置：
 
-```yaml
-retrieval:
-  mode: hybrid
-  dense-top-k: 3
-  sparse-top-k: 3
-  rrf-k: 60
-  lucene-index-path: ./data/lucene/knowledge
-  rebuild-on-startup: true
+```env
+QDRANT_URL=http://127.0.0.1:6333
+QDRANT_VECTOR_SIZE=1536
+RAG_DENSE_TOP_K=12
+RAG_KEYWORD_TOP_K=12
+RAG_RRF_K=60
+RAG_FINAL_TOP_K=3
+RERANKER_ENABLED=true
+CROSS_ENCODER_MODEL=BAAI/bge-reranker-base
 ```
 
 ## 模型配置
@@ -123,34 +128,49 @@ llm:
 ### 1. 启动基础服务
 
 ```powershell
-docker compose up -d mysql redis chroma
+docker compose up -d mysql redis qdrant
 ```
 
-首次运行会拉取 MySQL、Redis 和 Chroma 镜像。如果 Docker Hub 网络超时，重复执行同一条命令即可继续复用已下载的镜像层。
+首次运行会拉取 MySQL、Redis 和 Qdrant 镜像。如果 Docker Hub 网络超时，重复执行同一条命令即可继续复用已下载的镜像层。
 
 ### 2. 配置本地密钥
 
-在 `backend/src/main/resources/application-local.yml` 中配置本地数据库、Redis、模型 API Key 和邮件信息。该文件已加入 `.gitignore`，不会提交到 GitHub。
+Python 后端在 `backend-python/.env` 中配置数据库、Redis、Qdrant、模型 API Key 和邮件信息。该文件已加入 `.gitignore`，不会提交到 GitHub。
 
 最小配置示例：
 
-```yaml
-llm:
-  provider: openai
-  api-key: your_api_key
-
-spring:
-  datasource:
-    url: jdbc:mysql://127.0.0.1:3307/mental_companion?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
-    username: root
-    password: your_mysql_password
-  data:
-    redis:
-      host: 127.0.0.1
-      port: 6379
+```env
+MYSQL_URL=mysql+pymysql://root:1111@127.0.0.1:3307/mental_companion?charset=utf8mb4
+REDIS_URL=redis://127.0.0.1:6379/0
+QDRANT_URL=http://127.0.0.1:6333
+QDRANT_VECTOR_SIZE=1536
+LLM_PROVIDER=openai
+LLM_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode
+LLM_API_KEY=your_api_key
+LLM_MODEL=qwen-plus
+LLM_EMBEDDING_MODEL=text-embedding-v3
 ```
 
-### 3. 启动后端
+如果启动 Java 后端，则继续使用 `backend/src/main/resources/application-local.yml`。
+
+### 3. 启动 Python 后端
+
+```powershell
+cd backend-python
+python -m venv .venv
+.\.venv\Scripts\activate
+pip install -r requirements.txt
+copy .env.example .env
+uvicorn app.main:app --host 0.0.0.0 --port 8080 --reload
+```
+
+后端地址：
+
+```text
+http://localhost:8080
+```
+
+### 4. 启动 Java 后端
 
 ```powershell
 C:\Users\83848\.m2\wrapper\dists\apache-maven-3.9.12-bin\5nmfsn99br87k5d4ajlekdq10k\apache-maven-3.9.12\bin\mvn.cmd -f backend\pom.xml -DskipTests package
@@ -163,7 +183,9 @@ D:\JAVA\jdk21\bin\java.exe -jar backend\target\mental-companion-assistant-0.0.1-
 http://localhost:8080
 ```
 
-### 4. 启动前端
+Python 后端和 Java 后端都使用 8080 端口，二选一启动即可。
+
+### 5. 启动前端
 
 ```powershell
 cd frontend
