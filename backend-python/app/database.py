@@ -1,9 +1,12 @@
+import logging
 from collections.abc import Generator
 
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
 from app.config import get_settings
+
+logger = logging.getLogger(__name__)
 
 
 class Base(DeclarativeBase):
@@ -23,8 +26,11 @@ def get_db() -> Generator[Session, None, None]:
         db.close()
 
 
-def init_schema() -> None:
-    """Create missing tables for the Python backend when MySQL was not initialized by Docker."""
+def init_schema() -> bool:
+    """Create missing tables for the Python backend when MySQL was not initialized by Docker.
+
+    Returns True if schema initialization succeeded, False if MySQL is unavailable.
+    """
     statements = [
         """
         CREATE TABLE IF NOT EXISTS sys_user (
@@ -158,6 +164,11 @@ def init_schema() -> None:
         )
         """,
     ]
-    with engine.begin() as conn:
-        for statement in statements:
-            conn.execute(text(statement))
+    try:
+        with engine.begin() as conn:
+            for statement in statements:
+                conn.execute(text(statement))
+        return True
+    except Exception as exc:
+        logger.warning("Failed to initialize database schema: %s", exc)
+        return False

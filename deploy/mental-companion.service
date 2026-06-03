@@ -1,13 +1,13 @@
 [Unit]
-Description=Mental Companion Assistant Backend
+Description=Mental Companion Assistant - Python Backend
 After=network.target docker.service
 Requires=docker.service
 
 [Service]
 Type=simple
-WorkingDirectory=/opt/mindcare/mental-companion-assistant
+WorkingDirectory=/opt/mindcare/mental-companion-assistant/backend-python
 EnvironmentFile=/etc/mental-companion/mental-companion.env
-ExecStart=/usr/bin/java -jar /opt/mindcare/mental-companion-assistant/backend/target/mental-companion-assistant-0.0.1-SNAPSHOT.jar
+ExecStart=/opt/mindcare/miniconda3/envs/mindcare/bin/uvicorn app.main:app --host 127.0.0.1 --port 8080
 Restart=always
 RestartSec=5
 User=root

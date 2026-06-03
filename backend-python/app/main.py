@@ -1,4 +1,7 @@
+import logging
+from contextlib import asynccontextmanager
 from functools import lru_cache
+from typing import AsyncGenerator
 
 from fastapi import Depends, FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
@@ -25,8 +28,31 @@ from app.security import admin_user, create_token, current_user, hash_password, 
 from app.services import EmailService, ExcelService, KnowledgeService, seed_default_users, to_api_list
 from app.utils import model_to_dict
 
+logger = logging.getLogger(__name__)
+
 settings = get_settings()
-app = FastAPI(title=settings.app_name)
+
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
+    logger.info("Starting Mental Companion Python Backend...")
+    try:
+        if init_schema():
+            db = SessionLocal()
+            try:
+                seed_default_users(db)
+                logger.info("Database initialized and default users seeded.")
+            finally:
+                db.close()
+        else:
+            logger.warning("Database schema initialization skipped (MySQL may not be available).")
+    except Exception as exc:
+        logger.warning("Database initialization failed (services may not be ready): %s", exc)
+    yield
+    logger.info("Shutting down...")
+
+
+app = FastAPI(title=settings.app_name, lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -44,17 +70,8 @@ async def http_exception_handler(_: Request, exc: HTTPException):
 
 @app.exception_handler(Exception)
 async def global_exception_handler(_: Request, exc: Exception):
+    logger.exception("Unhandled exception")
     return JSONResponse(status_code=500, content={"success": False, "message": str(exc), "data": None})
-
-
-@app.on_event("startup")
-def startup() -> None:
-    init_schema()
-    db = SessionLocal()
-    try:
-        seed_default_users(db)
-    finally:
-        db.close()
 
 
 @lru_cache
@@ -159,6 +176,17 @@ def chat_messages(session_id: int, user: SysUser = Depends(current_user), db: Se
         .all()
     )
     return ok(to_api_list(messages))
+
+
+@app.delete("/api/chat/sessions/{session_id}")
+def delete_session(session_id: int, user: SysUser = Depends(current_user), db: Session = Depends(get_db)):
+    session = db.get(ChatSession, session_id)
+    if not session or session.user_id != user.id:
+        raise HTTPException(status_code=404, detail="会话不存在")
+    db.query(ChatMessage).filter(ChatMessage.session_id == session_id).delete()
+    db.delete(session)
+    db.commit()
+    return ok(None, "会话已删除")
 
 
 @app.post("/api/admin/knowledge/upload")

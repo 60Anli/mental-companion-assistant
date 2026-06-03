@@ -4,11 +4,11 @@ services:
     container_name: mental-companion-mysql
     restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: "1111"
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-1111}
       MYSQL_DATABASE: mental_companion
       TZ: Asia/Shanghai
     ports:
-      - "3307:3306"
+      - "${MYSQL_PORT:-3307}:3306"
     volumes:
       - mysql_data:/var/lib/mysql
       - ./docker/mysql/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
@@ -16,24 +16,12 @@ services:
       - --character-set-server=utf8mb4
       - --collation-server=utf8mb4_unicode_ci
 
-  chroma:
-    image: chromadb/chroma:0.5.23
-    container_name: mental-companion-chroma
-    restart: unless-stopped
-    ports:
-      - "8000:8000"
-    volumes:
-      - chroma_data:/chroma/chroma
-    environment:
-      IS_PERSISTENT: "TRUE"
-      ANONYMIZED_TELEMETRY: "FALSE"
-
   qdrant:
     image: qdrant/qdrant:v1.12.5
     container_name: mental-companion-qdrant
     restart: unless-stopped
     ports:
-      - "6333:6333"
+      - "${QDRANT_HOST_PORT:-6335}:6333"
     volumes:
       - qdrant_data:/qdrant/storage
 
@@ -42,12 +30,11 @@ services:
     container_name: mental-companion-redis
     restart: unless-stopped
     ports:
-      - "6379:6379"
+      - "${REDIS_HOST_PORT:-6379}:6379"
     volumes:
       - redis_data:/data
 
 volumes:
   mysql_data:
-  chroma_data:
   qdrant_data:
   redis_data:

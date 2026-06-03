@@ -12,3 +12,7 @@ export function fetchMessages(sessionId) {
   return http.get(`/chat/sessions/${sessionId}/messages`)
 }
 
+export function deleteSession(sessionId) {
+  return http.delete(`/chat/sessions/${sessionId}`)
+}
+

@@ -6,7 +6,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_file=("backend-python/.env", ".env"),
+        env_file=(".env", "../.env", "backend-python/.env"),
         env_file_encoding="utf-8",
         extra="ignore",
     )
@@ -29,7 +29,7 @@ class Settings(BaseSettings):
 
     qdrant_url: str = "http://127.0.0.1:6333"
     qdrant_collection: str = "mental_companion_knowledge"
-    qdrant_vector_size: int = 1536
+    qdrant_vector_size: int = 1024
 
     rag_final_top_k: int = 3
     rag_dense_top_k: int = 12
@@ -38,7 +38,7 @@ class Settings(BaseSettings):
     reranker_enabled: bool = True
     cross_encoder_model: str = "BAAI/bge-reranker-base"
 
-    excel_workflow_path: str = "./data/workflow-records-python.xlsx"
+    excel_workflow_path: str = "./data/workflow-records.xlsx"
     excel_export_dir: str = "./data/exported"
 
     mail_enabled: bool = False
