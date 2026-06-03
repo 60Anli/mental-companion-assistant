@@ -41,6 +41,7 @@
           登录
         </el-button>
         <p class="login-hint">测试账号：admin / admin123 或 user / user123</p>
+        <p class="login-hint about-link" @click="goAbout">📄 关于我 →</p>
       </el-form>
 
       <!-- 注册表单 -->
@@ -81,6 +82,10 @@ import { ElMessage } from 'element-plus'
 import { User, Lock } from '@element-plus/icons-vue'
 import { login, register } from '../api/auth'
 import { useAuthStore } from '../stores/auth'
+
+function goAbout() {
+  router.push('/about')
+}
 
 const router = useRouter()
 const auth = useAuthStore()
@@ -174,5 +179,16 @@ async function handleRegister() {
   text-align: center;
   font-size: 12px;
   color: var(--warm-400);
+}
+
+.about-link {
+  cursor: pointer;
+  color: var(--green-600);
+  font-weight: 500;
+}
+
+.about-link:hover {
+  color: var(--green-700);
+  text-decoration: underline;
 }
 </style>
