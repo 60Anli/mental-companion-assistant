@@ -1,12 +1,18 @@
 # 阿里云 ECS 生产环境 Docker Compose（仅基础服务）
-# 使用方式：docker compose -f deploy/docker-compose.ecs.yml --env-file /etc/mental-companion/mental-companion.env up -d
+# 使用方式：
+#   1. 创建环境变量文件: sudo mkdir -p /etc/mental-companion
+#   2. 写入密码: sudo tee /etc/mental-companion/infra.env << 'EOF'
+#      MYSQL_ROOT_PASSWORD=<强密码>
+#      REDIS_PASSWORD=<强密码>
+#      EOF
+#   3. 启动: docker compose -f deploy/docker-compose.ecs.yml --env-file /etc/mental-companion/infra.env up -d
 services:
   mysql:
     image: mysql:8.0
     container_name: mental-companion-mysql
     restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?set MYSQL_ROOT_PASSWORD in infra env file}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?请设置 MYSQL_ROOT_PASSWORD}
       MYSQL_DATABASE: mental_companion
       TZ: Asia/Shanghai
     ports:
@@ -27,7 +33,7 @@ services:
       - --appendonly
       - "yes"
       - --requirepass
-      - ${REDIS_PASSWORD:?set REDIS_PASSWORD in infra env file}
+      - ${REDIS_PASSWORD:?请设置 REDIS_PASSWORD}
     ports:
       - "127.0.0.1:6379:6379"
     volumes:

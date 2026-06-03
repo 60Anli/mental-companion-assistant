@@ -6,11 +6,12 @@ Requires=docker.service
 [Service]
 Type=simple
 WorkingDirectory=/opt/mindcare/mental-companion-assistant/backend-python
-EnvironmentFile=/etc/mental-companion/mental-companion.env
 ExecStart=/opt/mindcare/miniconda3/envs/mindcare/bin/uvicorn app.main:app --host 127.0.0.1 --port 8080
 Restart=always
 RestartSec=5
 User=root
+
+# Python 通过 .env 文件读取配置，不需要 systemd EnvironmentFile
 
 [Install]
 WantedBy=multi-user.target
