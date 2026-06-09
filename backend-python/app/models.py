@@ -38,6 +38,7 @@ class ChatMessage(Base):
     content: Mapped[str] = mapped_column(Text, nullable=False)
     intent: Mapped[str | None] = mapped_column(String(32))
     risk_level: Mapped[str | None] = mapped_column(String(32))
+    media_urls: Mapped[str | None] = mapped_column(Text, nullable=True)
     create_time: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
 

@@ -25,7 +25,13 @@ class Settings(BaseSettings):
     llm_base_url: str = "https://dashscope.aliyuncs.com/compatible-mode"
     llm_api_key: str = ""
     llm_model: str = "qwen-plus"
+    llm_vision_model: str = "qwen-vl-plus"
     llm_embedding_model: str = "text-embedding-v3"
+
+    max_image_size_mb: int = 10
+    max_media_count: int = 5
+    media_upload_dir: str = "./data/uploads"
+    media_allowed_image_types: str = "image/jpeg,image/png,image/gif,image/webp"
 
     qdrant_url: str = "http://127.0.0.1:6333"
     qdrant_collection: str = "mental_companion_knowledge"
@@ -63,6 +69,7 @@ class Settings(BaseSettings):
     def ensure_dirs(self) -> None:
         Path(self.excel_workflow_path).parent.mkdir(parents=True, exist_ok=True)
         Path(self.excel_export_dir).mkdir(parents=True, exist_ok=True)
+        Path(self.media_upload_dir).mkdir(parents=True, exist_ok=True)
 
 
 @lru_cache

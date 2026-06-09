@@ -5,7 +5,8 @@ from typing import Any, Literal, TypedDict
 from langgraph.graph import END, StateGraph
 from sqlalchemy.orm import Session
 
-from app.llm import LlmClient
+from app.llm import LlmClient, MultimodalContent
+from app.media import ProcessedMedia, make_multimodal_content
 from app.models import ChatMessage, ChatSession, RiskRecord, WorkflowRecord
 from app.prompts import INTENT_SYSTEM, intent_user, reply_system, reply_user
 from app.retrieval import HybridRetrievalPipeline
@@ -21,6 +22,11 @@ class ReActAgentState(TypedDict, total=False):
     user_id: int
     session_id: int | None
     message: str
+
+    # Multimodal — passed from the API layer
+    user_content: MultimodalContent
+    media_list: list[ProcessedMedia]
+    media_urls_json: str | None
 
     session: ChatSession
     references: list[RagReference]
@@ -66,12 +72,25 @@ class LangGraphReActAgent:
         self.email = EmailService()
         self.graph = self._build_graph()
 
-    def process_message(self, db: Session, user_id: int, session_id: int | None, message: str) -> dict[str, Any]:
+    def process_message(
+        self,
+        db: Session,
+        user_id: int,
+        session_id: int | None,
+        message: str,
+        *,
+        user_content: MultimodalContent | None = None,
+        media_list: list[ProcessedMedia] | None = None,
+        media_urls_json: str | None = None,
+    ) -> dict[str, Any]:
         state: ReActAgentState = {
             "db": db,
             "user_id": user_id,
             "session_id": session_id,
             "message": message,
+            "user_content": user_content or message,
+            "media_list": media_list or [],
+            "media_urls_json": media_urls_json,
             "actions": [],
             "react_trace": [],
             "excel_written": False,
@@ -149,7 +168,15 @@ class LangGraphReActAgent:
     def _tool_save_user_message(self, state: ReActAgentState) -> dict[str, Any]:
         db = state["db"]
         session = self._ensure_session(db, state["user_id"], state.get("session_id"), state["message"])
-        self._save_message(db, session.id, "USER", state["message"], None, None)
+        self._save_message(
+            db,
+            session.id,
+            "USER",
+            state["message"],
+            None,
+            None,
+            media_urls=state.get("media_urls_json"),
+        )
         return {"session": session, "observation": f"已保存用户消息，会话ID={session.id}。"}
 
     def _tool_knowledge_search(self, state: ReActAgentState) -> dict[str, Any]:
@@ -172,7 +199,11 @@ class LangGraphReActAgent:
         }
 
     def _tool_classify_risk(self, state: ReActAgentState) -> dict[str, Any]:
-        classification = self._classify(state["message"], state["rag_context"])
+        classification = self._classify(
+            state["message"],
+            state["rag_context"],
+            user_content=state.get("user_content"),
+        )
         rule_level, rule_type, keyword = self.risk_rules.detect(state["message"])
         final_risk = self._max_risk(classification.riskLevel, rule_level)
         final_intent = classification.intent
@@ -200,6 +231,7 @@ class LangGraphReActAgent:
             state["rag_context"],
             state["short_memory"],
             state["long_memory"],
+            user_content=state.get("user_content"),
         )
         return {"reply": reply, "observation": f"已生成 {state['final_intent']} 类型回复。"}
 
@@ -297,12 +329,34 @@ class LangGraphReActAgent:
         content: str,
         intent: str | None,
         risk: str | None,
+        *,
+        media_urls: str | None = None,
     ) -> None:
-        db.add(ChatMessage(session_id=session_id, role=role, content=content, intent=intent, risk_level=risk))
+        db.add(
+            ChatMessage(
+                session_id=session_id,
+                role=role,
+                content=content,
+                intent=intent,
+                risk_level=risk,
+                media_urls=media_urls,
+            )
+        )
 
-    def _classify(self, message: str, rag_context: str) -> ClassificationResult:
+    def _classify(
+        self,
+        message: str,
+        rag_context: str,
+        user_content: MultimodalContent | None = None,
+    ) -> ClassificationResult:
         try:
-            data = self.llm_client.chat_json(INTENT_SYSTEM, intent_user(message, rag_context))
+            content = user_content or intent_user(message, rag_context)
+            force_vision = isinstance(content, list) and len(content) > 1
+            data = self.llm_client.chat_json(
+                INTENT_SYSTEM,
+                content,
+                force_vision=force_vision,
+            )
             return ClassificationResult(**data)
         except Exception:
             rule_level, rule_type, _ = self.risk_rules.detect(message)
@@ -314,9 +368,39 @@ class LangGraphReActAgent:
                 return ClassificationResult(intent="CONSULT", riskLevel=rule_level, riskType=rule_type, reason="启发式识别为咨询")
             return ClassificationResult(intent="CHAT", riskLevel=rule_level, riskType=rule_type, reason="启发式识别为闲聊")
 
-    def _reply(self, intent: str, message: str, rag_context: str, short_memory: str, long_memory: str) -> str:
+    def _reply(
+        self,
+        intent: str,
+        message: str,
+        rag_context: str,
+        short_memory: str,
+        long_memory: str,
+        user_content: MultimodalContent | None = None,
+    ) -> str:
         try:
-            return self.llm_client.chat(reply_system(intent), reply_user(message, rag_context, short_memory, long_memory))
+            # When multimodal media is present, wrap the persona+RAG text around
+            # the visual content for the LLM.
+            if user_content is not None and isinstance(user_content, list) and len(user_content) > 1:
+                # Prepend the RAG/memory context as additional text block
+                context_text = reply_user(message, rag_context, short_memory, long_memory)
+                full_content: list[dict[str, object]] = [
+                    {"type": "text", "text": context_text},
+                ]
+                # Append image blocks from original user_content
+                for block in user_content:
+                    if isinstance(block, dict) and block.get("type") == "image_url":
+                        full_content.append(block)
+                force_vision = True
+                content: MultimodalContent = full_content
+            else:
+                content = reply_user(message, rag_context, short_memory, long_memory)
+                force_vision = False
+
+            return self.llm_client.chat(
+                reply_system(intent),
+                content,
+                force_vision=force_vision,
+            )
         except Exception:
             return self._fallback_reply(intent)
 

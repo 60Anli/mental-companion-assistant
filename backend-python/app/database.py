@@ -62,6 +62,7 @@ def init_schema() -> bool:
             content TEXT NOT NULL,
             intent VARCHAR(32),
             risk_level VARCHAR(32),
+            media_urls TEXT NULL,
             create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
             INDEX idx_chat_message_session (session_id)
         )
@@ -168,7 +169,32 @@ def init_schema() -> bool:
         with engine.begin() as conn:
             for statement in statements:
                 conn.execute(text(statement))
+        # Migration: add media_urls to existing chat_message tables
+        _migrate_add_column(
+            "chat_message",
+            "media_urls",
+            "TEXT NULL",
+        )
         return True
     except Exception as exc:
         logger.warning("Failed to initialize database schema: %s", exc)
         return False
+
+
+def _migrate_add_column(table: str, column: str, col_def: str) -> None:
+    """Add a column to an existing table if it doesn't already exist.
+
+    MySQL does not support ``ALTER TABLE ADD COLUMN IF NOT EXISTS`` so we
+    catch the duplicate-column error gracefully.
+    """
+    try:
+        with engine.begin() as conn:
+            conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {column} {col_def}"))
+        logger.info("Migration: added column %s to table %s", column, table)
+    except Exception as exc:
+        # Error 1060 = Duplicate column name — safe to ignore
+        err_msg = str(exc).lower()
+        if "1060" in err_msg or "duplicate column" in err_msg:
+            logger.debug("Migration: column %s already exists in %s, skipping.", column, table)
+        else:
+            logger.warning("Migration failed for %s.%s: %s", table, column, exc)

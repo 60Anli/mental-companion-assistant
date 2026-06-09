@@ -13,6 +13,25 @@ git pull --ff-only origin "$BRANCH"
 # Python 依赖更新
 $CONDA_PIP install -r backend-python/requirements.txt
 
+# 确保上传目录存在
+mkdir -p "$APP_DIR/backend-python/data/uploads"
+
+# 数据库迁移（增列容错）
+$CONDA_PYTHON -c "
+from app.database import engine
+from sqlalchemy import text
+try:
+    with engine.begin() as conn:
+        conn.execute(text('ALTER TABLE chat_message ADD COLUMN media_urls TEXT NULL'))
+    print('Migration OK: media_urls column added')
+except Exception as e:
+    err = str(e).lower()
+    if '1060' in err or 'duplicate' in err:
+        print('Migration SKIP: column already exists')
+    else:
+        print(f'Migration WARNING: {e}')
+"
+
 # 前端构建
 if [ -f frontend/package-lock.json ]; then
   npm --prefix frontend ci

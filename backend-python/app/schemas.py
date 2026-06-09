@@ -23,7 +23,17 @@ class LoginResponse(BaseModel):
 
 class ChatSendRequest(BaseModel):
     sessionId: int | None = None
-    message: str = Field(min_length=1)
+    message: str = Field(default="")
+
+
+class MediaInfo(BaseModel):
+    """Metadata for a single uploaded media file, returned to the frontend."""
+    originalName: str
+    savedPath: str
+    mimeType: str
+    width: int
+    height: int
+    fileSizeBytes: int
 
 
 class RagReference(BaseModel):
@@ -52,6 +62,7 @@ class ChatSendResponse(BaseModel):
     ragHit: bool
     references: list[RagReference] = []
     actions: list[str] = []
+    mediaInfo: list[MediaInfo] = []
 
 
 class EmailTestRequest(BaseModel):

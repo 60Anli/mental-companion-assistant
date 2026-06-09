@@ -3,14 +3,15 @@ from contextlib import asynccontextmanager
 from functools import lru_cache
 from typing import AsyncGenerator
 
-from fastapi import Depends, FastAPI, File, HTTPException, Request, UploadFile
+from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
-from app.database import SessionLocal, get_db, init_schema
+from app.database import SessionLocal, get_db, init_schema, _migrate_add_column
 from app.llm import LlmClient
+from app.media import ProcessedMedia, classify_media, make_multimodal_content, preprocess_image
 from app.agent import LangGraphReActAgent
 from app.models import (
     ChatMessage,
@@ -23,10 +24,10 @@ from app.models import (
     WorkflowRecord,
 )
 from app.retrieval import HybridRetrievalPipeline, QdrantVectorStore
-from app.schemas import ChatSendRequest, EmailTestRequest, LoginRequest, LoginResponse, RegisterRequest, ok
+from app.schemas import ChatSendRequest, EmailTestRequest, LoginRequest, LoginResponse, MediaInfo, RegisterRequest, ok
 from app.security import admin_user, create_token, current_user, hash_password, verify_password
 from app.services import EmailService, ExcelService, KnowledgeService, seed_default_users, to_api_list
-from app.utils import model_to_dict
+from app.utils import model_to_dict, safe_json
 
 logger = logging.getLogger(__name__)
 
@@ -48,6 +49,11 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
             logger.warning("Database schema initialization skipped (MySQL may not be available).")
     except Exception as exc:
         logger.warning("Database initialization failed (services may not be ready): %s", exc)
+    # Always attempt column migrations — even if init_schema was skipped
+    try:
+        _migrate_add_column("chat_message", "media_urls", "TEXT NULL")
+    except Exception as exc:
+        logger.debug("Migration attempt on startup: %s", exc)
     yield
     logger.info("Shutting down...")
 
@@ -144,12 +150,92 @@ def register(request: RegisterRequest, db: Session = Depends(get_db)):
 
 
 @app.post("/api/chat/send")
-def send_chat(
-    request: ChatSendRequest,
+async def send_chat(
+    session_id: int | None = Form(None, alias="sessionId"),
+    message: str = Form(""),
+    files: list[UploadFile] = File(default=[]),
     user: SysUser = Depends(current_user),
     db: Session = Depends(get_db),
 ):
-    data = chat_service().process_message(db, user.id, request.sessionId, request.message)
+    # ── 1. Preprocess uploaded media ────────────────────────────
+    settings = get_settings()
+    media_list: list[ProcessedMedia] = []
+    media_errors: list[str] = []
+
+    if files:
+        if len(files) > settings.max_media_count:
+            raise HTTPException(
+                status_code=400,
+                detail=f"最多同时上传 {settings.max_media_count} 个文件",
+            )
+
+        for f in files:
+            if not f.filename:
+                continue
+            mime = f.content_type or "application/octet-stream"
+            cat = classify_media(mime)
+
+            if not cat.is_image and not cat.is_video:
+                media_errors.append(f"{f.filename}: 不支持的文件类型 ({mime})")
+                continue
+
+            file_bytes = await f.read()
+            if len(file_bytes) > settings.max_image_size_mb * 1024 * 1024:
+                media_errors.append(
+                    f"{f.filename}: 文件大小超过 {settings.max_image_size_mb}MB 限制"
+                )
+                continue
+
+            try:
+                if cat.is_image:
+                    processed = preprocess_image(file_bytes, f.filename, mime)
+                    media_list.append(processed)
+                else:
+                    # Video — lazy import for Step 2
+                    from app.media import extract_video_frames
+
+                    frames = extract_video_frames(file_bytes, f.filename)
+                    media_list.extend(frames)
+            except Exception as exc:
+                logger.exception("Failed to process media %s", f.filename)
+                media_errors.append(f"{f.filename}: 处理失败 ({exc})")
+
+        if media_errors and not media_list:
+            raise HTTPException(status_code=400, detail="; ".join(media_errors))
+
+    # ── 2. Build multimodal content ──────────────────────────────
+    user_content = make_multimodal_content(message, media_list)
+
+    # Serialize media file paths for DB storage
+    media_urls_json = safe_json([m.saved_path for m in media_list if m.saved_path]) if media_list else None
+
+    # ── 3. Invoke agent with media-augmented state ───────────────
+    agent = chat_service()
+    data = agent.process_message(
+        db,
+        user.id,
+        session_id,
+        message,
+        user_content=user_content,
+        media_list=media_list,
+        media_urls_json=media_urls_json,
+    )
+
+    # Attach media metadata to response
+    data["mediaInfo"] = [
+        MediaInfo(
+            originalName=m.original_name,
+            savedPath=m.saved_path,
+            mimeType=m.mime_type,
+            width=m.width,
+            height=m.height,
+            fileSizeBytes=m.file_size_bytes,
+        ).model_dump()
+        for m in media_list
+    ]
+    if media_errors:
+        data["mediaErrors"] = media_errors
+
     return ok(data)
 
 

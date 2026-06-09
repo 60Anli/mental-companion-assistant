@@ -1,7 +1,22 @@
 import http from './http'
 
-export function sendMessage(data) {
-  return http.post('/chat/send', data)
+/**
+ * Send a chat message with optional media files.
+ * @param {{ sessionId: number|null, message: string, files: File[] }} params
+ * @returns {Promise<object>}
+ */
+export function sendMessage({ sessionId, message, files }) {
+  const formData = new FormData()
+  if (sessionId) {
+    formData.append('sessionId', sessionId)
+  }
+  formData.append('message', message || '')
+  if (files && files.length > 0) {
+    files.forEach((file) => formData.append('files', file))
+  }
+  return http.post('/chat/send', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  })
 }
 
 export function fetchSessions() {
